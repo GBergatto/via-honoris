@@ -1,0 +1,4 @@
+x1: 0       # Counter finished
+x2: 50      # Accumulator (5 * 10)
+x3: 10
+x4: 15      # 0xF
