@@ -69,7 +69,7 @@ assign pc_next = (pc_src_E) ? pc_target_E : pc_plus4_F;
 /* Program Counter */
 always_ff @(posedge clk or posedge rst) begin
    if (rst)
-      pc_F <= 32'h0;
+      pc_F <= RESET_PC;
    else if (!stall)
       pc_F <= pc_next;
 end

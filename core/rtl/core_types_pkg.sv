@@ -13,6 +13,7 @@ package core_types_pkg;
       OPC_SYSTEM = 7'b1110011  // ecall, ebreak, CSRs
    } opcode_e;
 
+   parameter logic [31:0] RESET_PC = 32'h8000_0000;
    // Ordered following the R-type instructions in Table from Chapter 35
    typedef enum logic [3:0] {
       ALU_ADD,

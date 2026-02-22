@@ -12,6 +12,24 @@ module dmem #(
 
 logic [31:0] ram [1<<AW];
 
+`ifdef verilator
+    // Expose signals for the tohost testbench hook
+    function logic get_we();
+        // verilator public
+        get_we = we;
+    endfunction
+
+    function logic [31:0] get_addr();
+        // verilator public
+        get_addr = addr;
+    endfunction
+
+    function logic [31:0] get_wdata();
+        // verilator public
+        get_wdata = wdata;
+    endfunction
+`endif
+
 // synchronous read + write
 always_ff @(posedge clk) begin
    if (re) begin

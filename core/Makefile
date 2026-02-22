@@ -1,8 +1,7 @@
-.PHONY: all sim sim-fw bitstream prog clean fw tb fpga waves
-
 MODULE ?= hp_soc
 PROG   ?= counter
 WAVE   ?= $(PROG)
+.PHONY: all sim sim-fw bitstream prog clean fw tb fpga waves
 
 # Default target
 all: verify
@@ -49,4 +48,3 @@ clean:
 	$(MAKE) -C fw clean
 	$(MAKE) -C tb clean
 	$(MAKE) -C fpga clean
-
