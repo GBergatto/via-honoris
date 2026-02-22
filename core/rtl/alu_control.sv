@@ -2,7 +2,7 @@
 import core_types_pkg::*;
 
 module alu_control (
-   input logic [6:0] opcode,
+   input opcode_e opcode,
    input logic [2:0] funct3,
    /* verilator lint_off UNUSEDSIGNAL */
    input logic [6:0] funct7,
@@ -11,15 +11,14 @@ module alu_control (
 
 always_comb begin
    case (opcode)
-      7'b0000011, 7'b0100011, 7'b1100111: // Load, Store, JALR
+      OPC_LOAD, OPC_STORE, OPC_JALR:
          alu_op = ALU_ADD;
-      7'b1100011: // B-type
+      OPC_BRANCH:
          alu_op = ALU_SUB;
 
-      // R-type and I-type
-      7'b0110011, 7'b0010011: begin
+      OPC_OP, OPC_OP_IMM: begin
          unique case (funct3)
-            3'b000: alu_op = (funct7[5] && opcode == 7'b0110011) ? ALU_SUB : ALU_ADD;
+            3'b000: alu_op = (funct7[5] && opcode == OPC_OP) ? ALU_SUB : ALU_ADD;
             3'b001: alu_op = ALU_SLL;
             3'b010: alu_op = ALU_SLT;
             3'b011: alu_op = ALU_SLTU;

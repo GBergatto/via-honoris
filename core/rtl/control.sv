@@ -1,5 +1,8 @@
+/* verilator lint_off IMPORTSTAR */
+import core_types_pkg::*;
+
 module control (
-   input logic [6:0] opcode,
+   input opcode_e opcode,
    /* verilator lint_off UNUSEDSIGNAL */
    input logic [2:0] funct3,
    /* verilator lint_off UNUSEDSIGNAL */
@@ -15,33 +18,32 @@ module control (
 );
 
 // ALU source op2 is Immediate for everything except R-Types and Branches
-assign alu_src = (opcode != 7'b0110011) && (opcode != 7'b1100011);
+assign alu_src = (opcode != OPC_OP) && (opcode != OPC_BRANCH);
 
 always_comb begin
    case (opcode)
-      7'b1100011, // branch
-      7'b0100011: // store
+      OPC_BRANCH, OPC_STORE:
          reg_write = 1'b0;
       default:
          reg_write = 1'b1;
    endcase
 end
 
-assign mem_write = (opcode == 7'b0100011);
-assign mem_read = (opcode == 7'b0000011);
+assign mem_write = (opcode == OPC_STORE);
+assign mem_read  = (opcode == OPC_LOAD);
+
 always_comb begin
    case (opcode)
-      7'b1101111, // JAL
-      7'b1100111: // JALR
+      OPC_JAL, OPC_JALR:
          result_src = 2'b10;
-      7'b0000011: // load
+      OPC_LOAD:
          result_src = 2'b01;
       default: result_src = 2'b00;
    endcase
 end
 
-assign jump = (opcode == 7'b1101111 || opcode == 7'b1100111);
-assign branch = (opcode == 7'b1100011);
-assign jump_reg = (opcode == 7'b1100111);
+assign jump     = (opcode == OPC_JAL) || (opcode == OPC_JALR);
+assign branch   = (opcode == OPC_BRANCH);
+assign jump_reg = (opcode == OPC_JALR);
 
 endmodule
