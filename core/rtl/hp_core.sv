@@ -2,8 +2,20 @@
 import core_types_pkg::*;
 
 module hp_core (
-    input logic clk,
-    input logic rst
+   input  logic clk,
+   input  logic rst,
+   output logic core_stall,
+
+   /* Instruction memory interface */
+   output logic [31:0] imem_addr,
+   input  logic [31:0] imem_data,
+
+   /* Data memory interface */
+   output logic [31:0] dmem_addr,
+   output logic [31:0] dmem_wdata,
+   input  logic [31:0] dmem_rdata,
+   output logic        dmem_re,
+   output logic        dmem_we
 );
 
 /* Control Signals Structs */
@@ -32,7 +44,6 @@ typedef struct packed {
     logic [1:0] result_src;
 } ctrl_W_t;
 
-
 ctrl_t ctrl_D, ctrl_E;
 ctrl_M_t ctrl_M;
 ctrl_W_t ctrl_W;
@@ -42,6 +53,8 @@ ctrl_W_t ctrl_W;
 // ===================================================================================
 logic stall, pc_src_E;
 logic [31:0] pc_F, pc_next, pc_plus4_F, pc_target_E;
+
+assign imem_addr = pc_F; // Drive the external instruction memory
 
 assign pc_plus4_F = pc_F + 4;
 assign pc_next = (pc_src_E) ? pc_target_E : pc_plus4_F;
@@ -54,38 +67,36 @@ always_ff @(posedge clk or posedge rst) begin
       pc_F <= pc_next;
 end
 
-/* Instruction Memory */
-logic [31:0] inst_wire;
-imem #(8) imem_i (
-   .clk (clk),
-   .rst (rst || pc_src_E),
-   .enable (!stall),
-   .pc (pc_F[31:2]),
-   .inst (inst_wire)
-);
-
 // ===================================================================================
 // Decode Stage
 // ===================================================================================
 logic [31:0] pc_D, pc_plus4_D;
 logic [31:0] inst_D;
+logic flush_D;
 
 /* IF/ID pipeline registers */
 always_ff @(posedge clk or posedge rst) begin
    if (rst) begin
       pc_D <= 32'b0;
       pc_plus4_D <= 32'b0;
-   end else if (pc_src_E) begin
-      // Flush on branch/jump
-      pc_D <= 32'b0;
-      pc_plus4_D <= 32'b0;
-   end else if (!stall) begin
-      pc_D <= pc_F;
-      pc_plus4_D <= pc_F + 4;
+      flush_D <= 1'b0;
+   end else begin
+      // Record if a branch was taken so we can flush the incoming instruction next cycle
+      flush_D <= pc_src_E; 
+
+      if (pc_src_E) begin
+         pc_D <= 32'b0;
+         pc_plus4_D <= 32'b0;
+      end else if (!stall) begin
+         pc_D <= pc_F;
+         pc_plus4_D <= pc_F + 4;
+      end
    end
 end
 
-assign inst_D = inst_wire;
+/* Instruction Flush Mux */
+// Flush the instruction after a jump
+assign inst_D = (flush_D) ? 32'h00000000 : imem_data;
 
 /* Immediate Generator */
 logic [31:0] imm_D;
@@ -186,6 +197,7 @@ end
 logic [1:0] forward_a_E, forward_b_E;
 // Stall only if the instruction in D reads the output of a load in E
 assign stall = ctrl_E.mem_read && (rd_E == rs1_D || rd_E == rs2_D);
+assign core_stall = stall;
 
 // Forwarding for source op1
 always_comb begin
@@ -287,21 +299,16 @@ always_ff @(posedge clk or posedge rst) begin
    end
 end
 
-/* Data Memory */
-logic [31:0] mem_out_W;
-dmem #(8) dmem_i (
-   .clk (clk),
-   .re (ctrl_M.mem_read),
-   .we (ctrl_M.mem_write),
-   .addr (alu_out_M),
-   .wdata (write_data_M),
-   .rdata (mem_out_W)
-);
+/* Drive External Data Memory */
+assign dmem_addr  = alu_out_M;
+assign dmem_wdata = write_data_M;
+assign dmem_we    = ctrl_M.mem_write;
+assign dmem_re    = ctrl_M.mem_read;
 
 // ===================================================================================
 // Writeback Stage
 // ===================================================================================
-logic [31:0] pc_plus4_W, alu_out_W;
+logic [31:0] pc_plus4_W, alu_out_W, mem_out_W;
 
 /* MEM/WB pipeline registers */
 always_ff @(posedge clk or posedge rst) begin
@@ -320,6 +327,9 @@ always_ff @(posedge clk or posedge rst) begin
    end
 end
 
+/* Read Data Memory */
+assign mem_out_W = dmem_rdata;
+
 /* ResultW Multiplexer */
 always_comb begin
    case (ctrl_W.result_src)
@@ -331,4 +341,3 @@ always_comb begin
 end
 
 endmodule
-

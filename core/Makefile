@@ -1,78 +1,34 @@
-MODULE ?= hp_core
-VERILATOR = verilator
-VCD_OUT = vlt_dump.vcd
+.PHONY: all sim bitstream prog clean fw tb fpga waves
 
-# Automatically find RTL and TB sources
-PKG_FILES   := rtl/core_types_pkg.sv # packages must be verilated first
-SRC_VERILOG := $(filter-out $(PKG_FILES), $(wildcard rtl/*.v rtl/*.sv))
-# Only select testbenches about the current top module
-TB_CPP      := $(wildcard tb/$(MODULE)*.cpp tb/$(MODULE)*.cc)
-ifneq ($(MAKECMDGOALS),clean) # always allow "make clean"
-ifeq ($(TB_CPP),)
-$(error No C++ testbench found matching "$(MODULE)*.cpp" in tb/)
-endif
-endif
-ALL_SOURCES := $(PKG_FILES) $(SRC_VERILOG) $(TB_CPP)
+MODULE ?= hp_soc
+PROG   ?= counter
 
-# Generate C++ in executable form
-VERILATOR_FLAGS += -cc --exe
-# Generate makefile dependencies (not shown as complicates the Makefile)
-#VERILATOR_FLAGS += -MMD
-# Optimize
-VERILATOR_FLAGS += -x-assign fast
-# Warn abount lint issues
-VERILATOR_FLAGS += -Wall
-# Link yaml-cpp library
-VERILATOR_FLAGS += --LDFLAGS -lyaml-cpp
-# Make waveforms
-VERILATOR_FLAGS += --trace-vcd
-# Check SystemVerilog assertions
-VERILATOR_FLAGS += --assert
-# Generate coverage analysis
-VERILATOR_FLAGS += --coverage
-# Run Verilator in debug mode
-#VERILATOR_FLAGS += --debug
-# Add this trace to get a backtrace in gdb
-#VERILATOR_FLAGS += --gdbbt
+all: sim
 
-.PHONY: all verilate build simulate coverage waves clean
+# 1. Build firmware only
+fw:
+	@echo ">>> Building Firmware..."
+	$(MAKE) -C fw PROG=$(PROG)
 
-all: simulate
+# 2. Run Verilator simulation
+sim: fw
+	@echo ">>> Running Simulation..."
+	$(MAKE) -C tb MODULE=$(MODULE)
 
-# 1) Run Verilator to generate C++ simulation files
-verilate: .stamp.verilate
+# 3. Build FPGA bitstream
+bitstream: fw
+	@echo ">>> Building FPGA Bitstream..."
+	$(MAKE) -C fpga bitstream
 
-.stamp.verilate: $(ALL_SOURCES)
-	@echo
-	@echo "### VERILATING ###"
-	$(VERILATOR) $(VERILATOR_FLAGS) \
-	  $(ALL_SOURCES) --top-module $(MODULE)
-	@touch .stamp.verilate
+# 4. Flash FPGA
+prog: fw
+	@echo ">>> Flashing FPGA..."
+	$(MAKE) -C fpga prog
 
-# 2) Build the C++ simulation using the Verilator‑generated Makefile
-build: obj_dir/V$(MODULE)
-
-obj_dir/V$(MODULE): .stamp.verilate
-	@echo
-	@echo "### BUILDING SIM ###"
-	$(MAKE) -C obj_dir -f V$(MODULE).mk V$(MODULE)
-
-# 3) Run the simulation (produces VCD and coverage data)
-simulate: build
-	@echo
-	@echo "### SIMULATING ###"
-	@rm -rf logs
-	@mkdir -p logs/waves
-	@obj_dir/V$(MODULE) +trace
-
-# 4) Generate annotated coverage
-coverage:
-	@echo
-	@echo "### COVERAGE ###"
-	@rm -rf logs/annotated
-	verilator_coverage --annotate logs/annotated logs/coverage.dat
-
-# 5) Cleanup
+# 5. Clean everything
 clean:
-	@rm -rf .stamp.* obj_dir logs *.log *.dmp *.vcd coverage.dat core
+	@echo ">>> Cleaning all directories..."
+	$(MAKE) -C fw clean
+	$(MAKE) -C tb clean
+	$(MAKE) -C fpga clean
 

@@ -1,6 +1,7 @@
-#include "Vhp_core.h"
-#include "Vhp_core_hp_core.h"
-#include "Vhp_core_regfile.h"
+#include "Vhp_soc.h"
+#include "Vhp_soc_hp_soc.h"
+#include "Vhp_soc_hp_core.h"
+#include "Vhp_soc_regfile.h"
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
@@ -17,6 +18,7 @@
 namespace fs = std::filesystem;
 
 #define TESTNAME_LENGTH 25
+#define ROMS_DIR "roms"
 
 // ANSI colors helpers
 #define RESET   "\033[0m"
@@ -72,7 +74,7 @@ int assemble_to_hex(const fs::path& asm_file, const fs::path& hex_file) {
 
 void run_test(const fs::path& asm_file, const fs::path& yaml_file) {
     // 1) assemble program
-    fs::path hex_file = "tb/roms/firmware.hex";
+    fs::path hex_file = fs::path(ROMS_DIR) / "firmware.hex";
     int n_instructions = assemble_to_hex(asm_file, hex_file);
 
     // 2) load expected register values from YAML file
@@ -88,7 +90,7 @@ void run_test(const fs::path& asm_file, const fs::path& yaml_file) {
     // 3) set up simulation
     VerilatedContext* contextp = new VerilatedContext;
     VerilatedVcdC* tfp = new VerilatedVcdC;
-    Vhp_core* dut = new Vhp_core{contextp};
+    Vhp_soc* dut = new Vhp_soc{contextp};
 
     contextp->traceEverOn(true);
     dut->trace(tfp, 99);
@@ -118,7 +120,7 @@ void run_test(const fs::path& asm_file, const fs::path& yaml_file) {
     std::stringstream log_buffer; // Buffer for register dump
 
     for (auto& [idx, exp_val] : expected) {
-        uint32_t got = dut->hp_core->regfile_i->get_reg(idx);
+        uint32_t got = dut->hp_soc->core->regfile_i->get_reg(idx);
 
         log_buffer << "   x" << std::dec << idx << "=0x" << std::hex << got;
 
@@ -152,14 +154,14 @@ int main(int argc, char** argv) {
 
     std::vector<fs::path> test_files;
 
-    if (fs::exists("tb/roms") && fs::is_directory("tb/roms")) {
-        for (auto& entry : fs::recursive_directory_iterator("tb/roms")) {
+    if (fs::exists(ROMS_DIR) && fs::is_directory(ROMS_DIR)) {
+        for (auto& entry : fs::recursive_directory_iterator(ROMS_DIR)) {
             if (entry.is_regular_file() && entry.path().extension() == ".s") {
                 test_files.push_back(entry.path());
             }
         }
     } else {
-        std::cerr << "Error: 'tb/roms' directory not found.\n";
+        std::cerr << "Error: '"<< ROMS_DIR << "' directory not found.\n";
         return 1;
     }
 
