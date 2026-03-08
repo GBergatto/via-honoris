@@ -7,7 +7,13 @@ obj_dir/
 coverage.dat
 logs/
 
-# Compiled files
+# FPGA build
+fpga/*.bit
+fpga/*.config
+fpga/*.json
+fpga/flattened_cpu.v
+
+# Compilation
 *.hex
 *.elf
 

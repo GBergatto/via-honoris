@@ -19,11 +19,14 @@ namespace fs = std::filesystem;
 
 #define TESTNAME_LENGTH 25
 #define ROMS_DIR "roms"
+#define FW_DIR "../fw"
+#define FIRMWARE_HEX "firmware.hex"
 
 // ANSI colors helpers
 #define RESET   "\033[0m"
 #define RED     "\033[31m"
 #define GREEN   "\033[32m"
+#define YELLOW  "\033[33m"
 
 // Convert firmware from binary into HEX
 int bin_to_hex(const fs::path& bin_file, const fs::path& hex_file) {
@@ -54,7 +57,7 @@ int assemble_to_hex(const fs::path& asm_file, const fs::path& hex_file) {
 
     // Assemble
     if (std::system(("riscv32-unknown-elf-as -march=rv32i -mabi=ilp32 " 
-                     + asm_file.string() + " -o " + elf_file).c_str()) != 0)
+                    + asm_file.string() + " -o " + elf_file).c_str()) != 0)
         throw std::runtime_error("Assembler failed");
 
     // Objcopy to raw binary
@@ -74,7 +77,7 @@ int assemble_to_hex(const fs::path& asm_file, const fs::path& hex_file) {
 
 void run_test(const fs::path& asm_file, const fs::path& yaml_file) {
     // 1) assemble program
-    fs::path hex_file = fs::path(ROMS_DIR) / "firmware.hex";
+    fs::path hex_file = fs::path(ROMS_DIR) / FIRMWARE_HEX;
     int n_instructions = assemble_to_hex(asm_file, hex_file);
 
     // 2) load expected register values from YAML file
@@ -149,11 +152,62 @@ void run_test(const fs::path& asm_file, const fs::path& yaml_file) {
     delete contextp;
 }
 
+void run_firmware(const std::string& prog_name, int max_cycles = 2000) {
+    VerilatedContext* contextp = new VerilatedContext;
+    VerilatedVcdC* tfp = new VerilatedVcdC;
+    Vhp_soc* dut = new Vhp_soc{contextp};
+
+    contextp->traceEverOn(true);
+    dut->trace(tfp, 99);
+
+    std::string wave_path = "logs/waves/" + prog_name + ".vcd";
+    tfp->open(wave_path.c_str());
+
+    int time = 0;
+    dut->clk = 0; dut->rst = 1; dut->eval(); tfp->dump(time++);
+
+    for (int i = 0; i < 2; i++) {
+        dut->clk = 1; dut->eval(); tfp->dump(time++);
+        dut->clk = 0; dut->eval(); tfp->dump(time++);
+    }
+    dut->rst = 0;
+
+    std::cout << YELLOW << ">>> Simulating Firmware '" << prog_name
+        << "' for " << max_cycles << " cycles..." << RESET << std::endl;
+
+    for (int cycle = 0; cycle < max_cycles; ++cycle) {
+        dut->clk = 1; dut->eval(); tfp->dump(time++);
+        dut->clk = 0; dut->eval(); tfp->dump(time++);
+    }
+
+    std::cout << GREEN << ">>> Simulation complete. Waveform saved to " << wave_path << RESET << "\n";
+
+    tfp->flush(); tfp->close();
+    delete tfp; delete dut; delete contextp;
+}
+
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
 
-    std::vector<fs::path> test_files;
+    // Parse command line for the --fw flag
+    std::string fw_prog = "";
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) == "--fw" && i + 1 < argc) {
+            fw_prog = argv[i+1];
+            break;
+        }
+    }
 
+    // MODE B: Firmware simulation
+    if (!fw_prog.empty()) {
+        // Copy the generated firmware into the directory Verilator expects
+        fs::copy_file(fs::path(FW_DIR) / FIRMWARE_HEX, fs::path(ROMS_DIR) / FIRMWARE_HEX, fs::copy_options::overwrite_existing);
+        run_firmware(fw_prog, 2000); // Simulate for 2000 cycles
+        return 0;
+    }
+
+    // MODE A: Unit testing
+    std::vector<fs::path> test_files;
     if (fs::exists(ROMS_DIR) && fs::is_directory(ROMS_DIR)) {
         for (auto& entry : fs::recursive_directory_iterator(ROMS_DIR)) {
             if (entry.is_regular_file() && entry.path().extension() == ".s") {

@@ -3,6 +3,7 @@
 # ==============================================================================
 
 MODULE ?= hp_soc
+SIM_ARGS ?=
 
 VERILATOR = verilator
 RTL_DIR = ../rtl
@@ -55,7 +56,7 @@ simulate: build
 	@echo "### SIMULATING ###"
 	@rm -rf logs
 	@mkdir -p logs/waves
-	@obj_dir/V$(MODULE) +trace
+	@obj_dir/V$(MODULE) +trace $(SIM_ARGS)
 
 coverage:
 	@echo "### COVERAGE ###"
