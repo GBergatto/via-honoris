@@ -9,7 +9,8 @@ module hp_soc #(
 /* verilator lint_off UNUSEDSIGNAL */
 logic [31:0] imem_addr, imem_data;
 logic [31:0] dmem_addr, dmem_wdata, dmem_rdata, rdata;
-logic core_stall, dmem_re, dmem_we;
+logic core_stall, dmem_re;
+logic [3:0] dmem_we;
 
 /* RISC-V core */
 hp_core core (
@@ -43,7 +44,7 @@ wire is_led = (dmem_addr == 32'h0100_0000);
 dmem #(8) data_mem (
    .clk (clk),
    .re (dmem_re),
-   .we (dmem_we & !is_led),
+   .we (is_led ? 4'b0000 : dmem_we),
    .addr (dmem_addr),
    .wdata (dmem_wdata),
    .rdata (dmem_rdata)
@@ -53,7 +54,7 @@ dmem #(8) data_mem (
 always_ff @(posedge clk) begin
    if (rst) begin
       leds <= 8'b0;
-   end else if (dmem_we && is_led) begin
+   end else if (|dmem_we && is_led) begin
       leds <= ~dmem_wdata[7:0]; // Catch the write!
    end
 end

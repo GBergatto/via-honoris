@@ -24,7 +24,8 @@ always_comb begin
       OPC_JAL:
          imm = {{12{inst[31]}}, inst[19:12], inst[20], inst[30:21], 1'b0};
 
-      // TODO: support U-type
+      OPC_LUI, OPC_AUIPC:
+         imm = {inst[31:12], 12'b0};
 
       default:
          imm = 32'b0;

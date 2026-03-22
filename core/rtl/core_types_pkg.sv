@@ -27,4 +27,18 @@ package core_types_pkg;
       ALU_AND
   } alu_op_t;
 
+   /* Enum for ALU op1 multiplexer */
+   typedef enum logic [1:0] {
+      OP1_RS1  = 2'b00,
+      OP1_ZERO = 2'b01,
+      OP1_PC   = 2'b10
+   } op1_src_e;
+
+   /* Enum for load/store size */
+   typedef enum logic [1:0] {
+      MEM_SIZE_B = 2'b00,
+      MEM_SIZE_H = 2'b01,
+      MEM_SIZE_W = 2'b10
+   } mem_size_e;
+
 endpackage

@@ -15,18 +15,21 @@ module hp_core (
    output logic [31:0] dmem_wdata,
    input  logic [31:0] dmem_rdata,
    output logic        dmem_re,
-   output logic        dmem_we
+   output logic [3:0]  dmem_we
 );
 
 /* Control Signals Structs */
 typedef struct packed {
    alu_op_t alu_op;
-   logic alu_src;
+   op1_src_e op1_src;
+   logic op2_src;
    logic reg_write;
    logic mem_write;
    logic mem_read;
    logic [1:0] result_src;
    logic [2:0] funct3;
+   mem_size_e mem_size;
+   logic mem_unsigned;
    logic branch;
    logic jump;
    logic jump_reg;
@@ -37,11 +40,15 @@ typedef struct packed {
    logic mem_write;
    logic reg_write;
    logic [1:0] result_src;
+   mem_size_e mem_size;
+   logic mem_unsigned;
 } ctrl_M_t;
 
 typedef struct packed {
     logic reg_write;
     logic [1:0] result_src;
+    mem_size_e mem_size;
+    logic mem_unsigned;
 } ctrl_W_t;
 
 ctrl_t ctrl_D, ctrl_E;
@@ -126,10 +133,13 @@ control control_i (
    .opcode (opcode),
    .funct3 (ctrl_D.funct3),
    .funct7 (funct7),
-   .alu_src (ctrl_D.alu_src),
+   .op1_src (ctrl_D.op1_src),
+   .op2_src (ctrl_D.op2_src),
    .reg_write (ctrl_D.reg_write),
    .mem_read (ctrl_D.mem_read),
    .mem_write (ctrl_D.mem_write),
+   .mem_size (ctrl_D.mem_size),
+   .mem_unsigned (ctrl_D.mem_unsigned),
    .result_src (ctrl_D.result_src),
    .branch (ctrl_D.branch),
    .jump (ctrl_D.jump),
@@ -221,15 +231,15 @@ always_comb begin
    end
 end
 
-logic [31:0] write_data_E, op1, op2, alu_out_M;
+logic [31:0] write_data_E, rs1_fwd, op1, op2, alu_out_M;
 
 /* Forwarding Multiplexers */
 always_comb begin
     case (forward_a_E)
-        2'b00: op1 = rs1_data_E; // No forwarding
-        2'b01: op1 = result_W;   // Forwarded from Writeback stage
-        2'b10: op1 = alu_out_M;  // Forwarded from Memory stage
-        default: op1 = rs1_data_E;
+        2'b00: rs1_fwd = rs1_data_E; // No forwarding
+        2'b01: rs1_fwd = result_W;   // Forwarded from Writeback stage
+        2'b10: rs1_fwd = alu_out_M;  // Forwarded from Memory stage
+        default: rs1_fwd = rs1_data_E;
     endcase
 
     case (forward_b_E)
@@ -241,13 +251,23 @@ always_comb begin
 end
 
 /* PC Target */
-assign pc_target_E = ((ctrl_E.jump_reg) ? op1 : pc_E) + imm_E;
+assign pc_target_E = ((ctrl_E.jump_reg) ? rs1_fwd : pc_E) + imm_E;
 
-/* ALU */
+/* ALU sources multiplexers */
+always_comb begin
+   case (ctrl_E.op1_src)
+      OP1_ZERO: op1 = 32'b0;
+      OP1_PC:   op1 = pc_E;
+      default:  op1 = rs1_fwd;
+   endcase
+
+   op2 = (ctrl_E.op2_src) ? imm_E : write_data_E;
+end
+
 logic [31:0] alu_out_D;
 logic branch_condition_E, zero_E, lt_E, ltu_E;
-assign op2 = (ctrl_E.alu_src) ? imm_E : write_data_E;
 
+/* ALU */
 alu alu_i (
    .op1 (op1),
    .op2 (op2),
@@ -291,6 +311,8 @@ always_ff @(posedge clk or posedge rst) begin
       ctrl_M.mem_read  <= ctrl_E.mem_read;
       ctrl_M.mem_write <= ctrl_E.mem_write;
       ctrl_M.result_src <= ctrl_E.result_src;
+      ctrl_M.mem_size <= ctrl_E.mem_size;
+      ctrl_M.mem_unsigned <= ctrl_E.mem_unsigned;
 
       alu_out_M <= alu_out_D;
       write_data_M <= write_data_E;
@@ -299,10 +321,33 @@ always_ff @(posedge clk or posedge rst) begin
    end
 end
 
+logic [3:0] dmem_we_M;
+logic [31:0] write_data_aligned_M;
+
+/* Store masking and data alignment */
+always_comb begin
+   if (ctrl_M.mem_write) begin
+      case (ctrl_M.mem_size)
+         MEM_SIZE_B: dmem_we_M = 4'b0001 << alu_out_M[1:0];       // SB
+         MEM_SIZE_H: dmem_we_M = 4'b0011 << {alu_out_M[1], 1'b0}; // SH
+         MEM_SIZE_W: dmem_we_M = 4'b1111;                         // SW
+         default: dmem_we_M = 4'b0000;
+      endcase
+   end else begin
+      dmem_we_M = 4'b0000;
+   end
+
+   case (ctrl_M.mem_size)
+      MEM_SIZE_B: write_data_aligned_M = {4{write_data_M[7:0]}};  // SB
+      MEM_SIZE_H: write_data_aligned_M = {2{write_data_M[15:0]}}; // SH
+      default: write_data_aligned_M = write_data_M;               // SW
+   endcase
+end
+
 /* Drive External Data Memory */
 assign dmem_addr  = alu_out_M;
-assign dmem_wdata = write_data_M;
-assign dmem_we    = ctrl_M.mem_write;
+assign dmem_wdata = write_data_aligned_M;
+assign dmem_we    = dmem_we_M;
 assign dmem_re    = ctrl_M.mem_read;
 
 // ===================================================================================
@@ -323,12 +368,35 @@ always_ff @(posedge clk or posedge rst) begin
       rd_W <= rd_M;
       ctrl_W.result_src <= ctrl_M.result_src;
       ctrl_W.reg_write <= ctrl_M.reg_write;
+      ctrl_W.mem_size <= ctrl_M.mem_size;
+      ctrl_W.mem_unsigned <= ctrl_M.mem_unsigned;
       pc_plus4_W <= pc_plus4_M;
    end
 end
 
 /* Read Data Memory */
-assign mem_out_W = dmem_rdata;
+logic [7:0] byte_data;
+logic [15:0] half_data;
+
+/* Load masking and data alignment */
+always_comb begin
+   byte_data = 8'(dmem_rdata >> {alu_out_W[1:0], 3'b000});
+   half_data = 16'(dmem_rdata >> {alu_out_W[1], 4'b0000});
+
+   if (ctrl_W.mem_unsigned) begin
+      case (ctrl_W.mem_size)
+         MEM_SIZE_B: mem_out_W = {24'b0, byte_data}; // LBU
+         MEM_SIZE_H: mem_out_W = {16'b0, half_data}; // LHU
+         default: mem_out_W = dmem_rdata;            // LW
+      endcase
+   end else begin
+      case (ctrl_W.mem_size)
+         MEM_SIZE_B: mem_out_W = {{24{byte_data[7]}}, byte_data};  // LB
+         MEM_SIZE_H: mem_out_W = {{16{half_data[15]}}, half_data}; // LH
+         default: mem_out_W = dmem_rdata;                          // LW
+      endcase
+   end
+end
 
 /* ResultW Multiplexer */
 always_comb begin
