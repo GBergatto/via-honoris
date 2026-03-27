@@ -28,7 +28,7 @@ hp_core core (
 
 /* Instruction memory */
 imem #(
-   .AW (8),
+   .AW (13),
    .INIT_FILE (INIT_FILE)
 ) instr_mem (
    .clk (clk),
@@ -41,7 +41,7 @@ imem #(
 wire is_led = (dmem_addr == 32'h0100_0000);
 
 /* Data memory */
-dmem #(8) data_mem (
+dmem #(13) data_mem (
    .clk (clk),
    .re (dmem_re),
    .we (is_led ? 4'b0000 : dmem_we),
