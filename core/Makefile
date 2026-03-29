@@ -1,26 +1,19 @@
-.PHONY: all sim sim-fw bitstream prog clean fw tb fpga waves
+.PHONY: all verify rvtests sim sim-fw bitstream prog clean fw tb fpga waves
 
 # --- Configuration Variables ---
 MODULE ?= hp_soc
-TB     ?= hp_core
+TB     ?= $(MODULE)
 PROG   ?= counter
 WAVE   ?= $(PROG)
 
-VERILATOR = verilator
-VCD_OUT   = vlt_dump.vcd
-
-# --- Automatically find RTL and TB sources ---
-PKG_FILES   := rtl/core_types_pkg.sv # packages must be verilated first
-SRC_VERILOG := $(filter-out $(PKG_FILES), $(wildcard rtl/*.v rtl/*.sv))
-TB_CPP      := $(wildcard tb/$(TB)*.cpp tb/$(TB)*.cc)
+# Resolve testbench source from a stem (e.g. TB=regfile -> tb/regfile_tb.cpp)
+TB_CPP := $(firstword $(wildcard tb/$(TB)*.cpp tb/$(TB)*.cc))
 
 ifneq ($(MAKECMDGOALS),clean) # always allow "make clean"
 ifeq ($(TB_CPP),)
 $(error No C++ testbench found matching "$(TB)*.cpp" in tb/)
 endif
 endif
-
-ALL_SOURCES := $(PKG_FILES) $(SRC_VERILOG) $(TB_CPP)
 
 # Default target
 all: verify
@@ -33,12 +26,17 @@ fw:
 # 2. Run Verilator testbench
 verify:
 	@echo ">>> Running Verilator testbench..."
-	$(MAKE) -C tb MODULE=$(MODULE)
+	$(MAKE) -C tb MODULE=$(MODULE) TB=$(notdir $(TB_CPP))
+
+# 2b. Run official riscv-tests (rv32ui)
+rvtests:
+	@echo ">>> Running rv32ui riscv-tests..."
+	$(MAKE) -C tb MODULE=hp_soc TB=riscv_tests_tb.cpp
 
 # 3. Simulate firmware
 sim: fw
 	@echo ">>> Simulating Firmware ($(PROG))..."
-	$(MAKE) -C tb MODULE=$(MODULE) SIM_ARGS="--fw $(PROG)"
+	$(MAKE) -C tb MODULE=$(MODULE) TB=hp_soc_tb.cpp SIM_ARGS="--fw $(PROG)"
 
 # 4. Build FPGA bitstream
 bitstream: fw

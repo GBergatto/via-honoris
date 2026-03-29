@@ -1,6 +1,6 @@
-#include "Vhp_core.h"
-#include "Vhp_core_hp_core.h"
-#include "Vhp_core_dmem__Ad.h"
+#include "Vhp_soc.h"
+#include "Vhp_soc_hp_soc.h"
+#include "Vhp_soc_dmem__Ad.h"
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
@@ -17,7 +17,7 @@ namespace fs = std::filesystem;
 
 #define TESTNAME_LENGTH 30
 #define MAX_SIM_CYCLES 50000 // Timeout to prevent infinite loops
-#define TEST_DIR "tb/riscv-tests"
+#define TEST_DIR "riscv-tests/isa/build"
 
 // ANSI colors
 #define RESET   "\033[0m"
@@ -71,13 +71,12 @@ uint32_t get_tohost_addr(const fs::path& elf_file) {
 
 void run_riscv_test(const fs::path& elf_file) {
     std::string bin_file = elf_file.stem().string() + ".bin";
-    fs::path hex_file = "tb/roms/firmware.hex";
+    fs::path hex_file = "roms/firmware.hex";
 
     // 1) Extract tohost address
     uint32_t tohost_addr = 0;
     try {
         tohost_addr = get_tohost_addr(elf_file);
-        std::cout << std::hex << tohost_addr << std::endl;
     } catch (const std::exception& e) {
         std::cout << std::left << std::setw(TESTNAME_LENGTH) << elf_file.stem().string() 
             << YELLOW << "[SKIP] " << RESET << e.what() << std::endl;
@@ -94,7 +93,7 @@ void run_riscv_test(const fs::path& elf_file) {
     // 3) Set up simulation
     VerilatedContext* contextp = new VerilatedContext;
     VerilatedVcdC* tfp = new VerilatedVcdC;
-    Vhp_core* dut = new Vhp_core{contextp};
+    Vhp_soc* dut = new Vhp_soc{contextp};
 
     contextp->traceEverOn(true);
     dut->trace(tfp, 99);
@@ -120,9 +119,9 @@ void run_riscv_test(const fs::path& elf_file) {
         dut->clk = 1; dut->eval(); tfp->dump(time++);
 
         // Snooping the memory bus for 'tohost' writes
-        if (dut->hp_core->dmem_i->get_we()) {
-            if (dut->hp_core->dmem_i->get_addr() == tohost_addr) {
-                uint32_t tohost_val = dut->hp_core->dmem_i->get_wdata();
+        if (dut->hp_soc->data_mem->get_we() != 0) {
+            if (dut->hp_soc->data_mem->get_addr() == tohost_addr) {
+                uint32_t tohost_val = dut->hp_soc->data_mem->get_wdata();
 
                 if (tohost_val == 1) {
                     isPassing = true;
@@ -158,7 +157,7 @@ void run_riscv_test(const fs::path& elf_file) {
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
     std::vector<fs::path> test_files;
-    fs::path target_isa_dir = fs::path(TEST_DIR) / "isa";
+    fs::path target_isa_dir = fs::path(TEST_DIR);
 
     if (fs::exists(target_isa_dir) && fs::is_directory(target_isa_dir)) {
         for (auto& entry : fs::recursive_directory_iterator(target_isa_dir)) {

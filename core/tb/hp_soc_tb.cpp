@@ -116,6 +116,11 @@ void run_test(const fs::path& asm_file, const fs::path& yaml_file) {
     for (int cycle = 0; cycle < 5 * n_instructions; ++cycle) {
         dut->clk = 1; dut->eval(); tfp->dump(time++);
         dut->clk = 0; dut->eval(); tfp->dump(time++);
+
+        // Snoop for EBREAK
+        if (dut->hp_soc->core->is_env_trap_W && dut->hp_soc->core->csr_addr_W == 0x001) {
+            break;
+        }
     }
 
     // 5) check registers

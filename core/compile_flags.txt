@@ -1,4 +1,8 @@
--Itb/obj_dir
+-Itb/build/obj_dir_hp_soc_tb
+-Itb/build/obj_dir_riscv_tests_tb
+-Itb/build/obj_dir_alu_tb
+-Itb/build/obj_dir_dmem_tb
+-Itb/build/obj_dir_imem_tb
+-Itb/build/obj_dir_regfile_tb
 -I/usr/share/verilator/include
 -I/usr/share/verilator/include/vltstd
-

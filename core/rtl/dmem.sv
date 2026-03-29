@@ -14,7 +14,7 @@ logic [31:0] ram [1<<AW];
 
 `ifdef verilator
     // Expose signals for the tohost testbench hook
-    function logic get_we();
+    function logic [3:0] get_we();
         // verilator public
         get_we = we;
     endfunction

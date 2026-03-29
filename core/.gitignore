@@ -1,5 +1,5 @@
 # Verilator build directory
-obj_dir/
+tb/build/
 
 # Coverage and waveform outputs
 *.vcd

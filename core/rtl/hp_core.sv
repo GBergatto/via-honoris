@@ -58,13 +58,16 @@ ctrl_W_t ctrl_W;
 // ===================================================================================
 // Fetch Stage
 // ===================================================================================
-logic stall, pc_src_E;
+logic stall, pc_src_E, pc_src_W;
 logic [31:0] pc_F, pc_next, pc_plus4_F, pc_target_E;
+logic [31:0] pc_target_W;
 
 assign imem_addr = pc_F; // Drive the external instruction memory
 
 assign pc_plus4_F = pc_F + 4;
-assign pc_next = (pc_src_E) ? pc_target_E : pc_plus4_F;
+assign pc_next = (pc_src_W) ? pc_target_W : // traps
+                ((pc_src_E) ? pc_target_E : // branches/jumps
+                              pc_plus4_F);  // next sequential PC
 
 /* Program Counter */
 always_ff @(posedge clk or posedge rst) begin
@@ -84,17 +87,11 @@ logic flush_D;
 /* IF/ID pipeline registers */
 always_ff @(posedge clk or posedge rst) begin
    if (rst) begin
-      pc_D <= 32'b0;
-      pc_plus4_D <= 32'b0;
       flush_D <= 1'b0;
    end else begin
       // Record if a branch was taken so we can flush the incoming instruction next cycle
-      flush_D <= pc_src_E; 
-
-      if (pc_src_E) begin
-         pc_D <= 32'b0;
-         pc_plus4_D <= 32'b0;
-      end else if (!stall) begin
+      flush_D <= pc_src_E || pc_src_W;
+      if (!stall) begin
          pc_D <= pc_F;
          pc_plus4_D <= pc_F + 4;
       end
@@ -127,6 +124,15 @@ always_comb begin
    rs2_D         = inst_D[24:20];
    funct7        = inst_D[31:25];
 end
+
+logic [31:0] write_data_E, rs1_fwd, op1, op2, alu_out_M;
+logic is_env_trap_D, is_mret_D, is_csr_D;
+csr_addr_e csr_addr_D;
+
+assign csr_addr_D = csr_addr_e'(inst_D[31:20]);
+assign is_csr_D = (opcode == OPC_SYSTEM) && (ctrl_D.funct3 != 3'b000);
+assign is_env_trap_D = (opcode == OPC_SYSTEM) && (ctrl_D.funct3 == 3'b000) && (csr_addr_D[11:1] == 11'b0);
+assign is_mret_D = (opcode == OPC_SYSTEM) && (ctrl_D.funct3 == 3'b000) && (csr_addr_D == 12'h302);
 
 /* Control Logic */
 control control_i (
@@ -169,26 +175,58 @@ regfile regfile_i (
    .rs2_data (rs2_data_D)
 );
 
+csr_addr_e csr_addr_W /* verilator public */;
+logic [31:0] trap_cause_W;
+assign trap_cause_W = (csr_addr_W == 12'h001)
+                        ? 32'd3   // EBREAK -> breakpoint
+                        : 32'd11; // M-mode
+
+logic [31:0] pc_W;
+logic [31:0] csr_read_data_D, csr_write_data_W;
+logic is_mret_W, is_csr_W;
+logic is_env_trap_W /* verilator public */;
+
+/* CSR File */
+logic [31:0] mtvec_out, mepc_out;
+csr_file csr_file_i (
+   .clk (clk),
+   .rst (rst),
+   .read_addr (csr_addr_D),
+   .read_data (csr_read_data_D),
+   .write_enable (is_csr_W),
+   .write_addr (csr_addr_W),
+   .write_data (csr_write_data_W),
+   .trap (is_env_trap_W),
+   .trap_pc (pc_W),
+   .trap_cause (trap_cause_W),
+   .mret (is_mret_W),
+   .mtvec_out (mtvec_out),
+   .mepc_out (mepc_out)
+);
+
 // ===================================================================================
 // Execute Stage
 // ===================================================================================
 logic [31:0] rs1_data_E, rs2_data_E, imm_E;
 logic [31:0] pc_E, pc_plus4_E;
+logic [31:0] csr_read_data_E, csr_write_data_E;
 logic [4:0] rd_E, rd_M, rs1_E, rs2_E;
+logic is_env_trap_E, is_mret_E, is_csr_E;
+csr_addr_e csr_addr_E;
 
 /* ID/EX pipeline registers */
 always_ff @(posedge clk or posedge rst) begin
    if (rst) begin
       ctrl_E <= '0;
-      rs1_data_E <= 0;
-      rs2_data_E <= 0;
-      imm_E <= 0;
-      rs1_E <= 0;
-      rs2_E <= 0;
-   end else if (pc_src_E || stall) begin
+      is_env_trap_E <= 1'b0;
+      is_mret_E <= 1'b0;
+      is_csr_E <= 1'b0;
+   end else if (pc_src_E || pc_src_W || stall) begin
       // inject bubble in the EX stage, i.e. do nothing for one cycle
       ctrl_E <= '0;
-      rd_E <= 0;
+      is_env_trap_E <= 1'b0;
+      is_mret_E <= 1'b0;
+      is_csr_E <= 1'b0;
 
    end else begin
       ctrl_E <= ctrl_D;
@@ -200,6 +238,11 @@ always_ff @(posedge clk or posedge rst) begin
       rd_E <= rd_D;
       pc_E <= pc_D;
       pc_plus4_E <= pc_plus4_D;
+      csr_addr_E <= csr_addr_D;
+      is_env_trap_E <= is_env_trap_D;
+      is_mret_E <= is_mret_D;
+      is_csr_E <= is_csr_D;
+      csr_read_data_E <= csr_read_data_D;
    end
 end
 
@@ -231,23 +274,37 @@ always_comb begin
    end
 end
 
-logic [31:0] write_data_E, rs1_fwd, op1, op2, alu_out_M;
+logic [31:0] csr_read_data_M;
+logic is_csr_M;
 
 /* Forwarding Multiplexers */
 always_comb begin
     case (forward_a_E)
         2'b00: rs1_fwd = rs1_data_E; // No forwarding
         2'b01: rs1_fwd = result_W;   // Forwarded from Writeback stage
-        2'b10: rs1_fwd = alu_out_M;  // Forwarded from Memory stage
+        2'b10: rs1_fwd = (is_csr_M) ? csr_read_data_M : alu_out_M;  // Forwarded from Memory stage
         default: rs1_fwd = rs1_data_E;
     endcase
 
     case (forward_b_E)
         2'b00: write_data_E = rs2_data_E; // No forwarding
         2'b01: write_data_E = result_W;   // Forwarded from Writeback stage
-        2'b10: write_data_E = alu_out_M;  // Forwarded from Memory stage
+        2'b10: write_data_E = (is_csr_M) ? csr_read_data_M : alu_out_M;  // Forwarded from Memory stage
         default: write_data_E = rs2_data_E;
     endcase
+end
+
+/* CSR write data calculation in EX */
+always_comb begin
+   unique case (ctrl_E.funct3)
+      3'b001: csr_write_data_E = rs1_fwd;
+      3'b010: csr_write_data_E = csr_read_data_E | rs1_fwd;
+      3'b011: csr_write_data_E = csr_read_data_E & ~rs1_fwd;
+      3'b101: csr_write_data_E = {27'b0, rs1_E};
+      3'b110: csr_write_data_E = csr_read_data_E | {27'b0, rs1_E};
+      3'b111: csr_write_data_E = csr_read_data_E & ~{27'b0, rs1_E};
+      default: csr_write_data_E = 32'b0;
+   endcase
 end
 
 /* PC Target */
@@ -296,16 +353,24 @@ assign pc_src_E = ctrl_E.jump || (ctrl_E.branch && branch_condition_E);
 // ===================================================================================
 // Memory Stage
 // ===================================================================================
-logic [31:0] pc_plus4_M, write_data_M;
+logic [31:0] pc_M, pc_plus4_M, write_data_M;
+logic [31:0] csr_write_data_M;
+logic is_env_trap_M, is_mret_M;
+csr_addr_e csr_addr_M;
 
 /* EX/MEM pipeline registers */
 always_ff @(posedge clk or posedge rst) begin
    if (rst) begin
       ctrl_M <= '0;
-      alu_out_M <= 0;
-      write_data_M <= 0;
-      rd_M <= 0;
-      pc_plus4_M <= 0;
+      is_csr_M <= 1'b0;
+      is_env_trap_M <= 1'b0;
+      is_mret_M <= 1'b0;
+   end else if (pc_src_W) begin
+      // flush MEM stage when a trap resolves in WB
+      ctrl_M <= '0;
+      is_csr_M <= 1'b0;
+      is_env_trap_M <= 1'b0;
+      is_mret_M <= 1'b0;
    end else begin
       ctrl_M.reg_write <= ctrl_E.reg_write;
       ctrl_M.mem_read  <= ctrl_E.mem_read;
@@ -318,6 +383,13 @@ always_ff @(posedge clk or posedge rst) begin
       write_data_M <= write_data_E;
       rd_M <= rd_E;
       pc_plus4_M <= pc_plus4_E;
+      is_csr_M <= is_csr_E;
+      csr_read_data_M <= csr_read_data_E;
+      csr_write_data_M <= csr_write_data_E;
+      csr_addr_M <= csr_addr_E;
+      is_env_trap_M <= is_env_trap_E;
+      is_mret_M <= is_mret_E;
+      pc_M <= pc_E;
    end
 end
 
@@ -353,16 +425,15 @@ assign dmem_re    = ctrl_M.mem_read;
 // ===================================================================================
 // Writeback Stage
 // ===================================================================================
-logic [31:0] pc_plus4_W, alu_out_W, mem_out_W;
+logic [31:0] pc_plus4_W, alu_out_W, mem_out_W, csr_read_data_W;
 
 /* MEM/WB pipeline registers */
 always_ff @(posedge clk or posedge rst) begin
    if (rst) begin
-      alu_out_W <= 0;
-      rd_W <= 0;
-      ctrl_W.result_src <= 0;
       ctrl_W.reg_write <= 0;
-      pc_plus4_W <= 0;
+      is_csr_W <= 1'b0;
+      is_env_trap_W <= 1'b0;
+      is_mret_W <= 1'b0;
    end else begin
       alu_out_W <= alu_out_M;
       rd_W <= rd_M;
@@ -371,8 +442,20 @@ always_ff @(posedge clk or posedge rst) begin
       ctrl_W.mem_size <= ctrl_M.mem_size;
       ctrl_W.mem_unsigned <= ctrl_M.mem_unsigned;
       pc_plus4_W <= pc_plus4_M;
+      is_csr_W <= is_csr_M;
+      csr_read_data_W <= csr_read_data_M;
+      csr_write_data_W <= csr_write_data_M;
+      csr_addr_W <= csr_addr_M;
+      is_env_trap_W <= is_env_trap_M;
+      is_mret_W <= is_mret_M;
+      pc_W <= pc_M;
    end
 end
+
+
+/* PC Target W for traps */
+assign pc_src_W = is_env_trap_W || is_mret_W;
+assign pc_target_W = (is_mret_W) ? mepc_out : ((mtvec_out[1:0] == 2'b01) ? {mtvec_out[31:2], 2'b00} : mtvec_out);
 
 /* Read Data Memory */
 logic [7:0] byte_data;
@@ -400,12 +483,16 @@ end
 
 /* ResultW Multiplexer */
 always_comb begin
-   case (ctrl_W.result_src)
-      2'b00: result_W = alu_out_W;
-      2'b01: result_W = mem_out_W;
-      2'b10: result_W = pc_plus4_W;
-      default: result_W = 0;
-   endcase
+  if (is_csr_W) begin
+      result_W = csr_read_data_W;
+   end else begin
+      case (ctrl_W.result_src)
+         2'b00: result_W = alu_out_W;
+         2'b01: result_W = mem_out_W;
+         2'b10: result_W = pc_plus4_W;
+         default: result_W = 0;
+      endcase
+   end
 end
 
 endmodule

@@ -3,24 +3,28 @@
 # ==============================================================================
 
 MODULE ?= hp_soc
+TB ?= $(MODULE)_tb.cpp
 SIM_ARGS ?=
 
-VERILATOR = verilator
-RTL_DIR = ../rtl
-FW_DIR = ../fw
+VERILATOR := verilator
+RTL_DIR := ../rtl
+FW_DIR := ../fw
+BUILD_DIR   := build
 
 # Automatically find RTL and TB sources
 PKG_FILES   := $(RTL_DIR)/core_types_pkg.sv
 SRC_VERILOG := $(filter-out $(PKG_FILES), $(wildcard $(RTL_DIR)/*.v $(RTL_DIR)/*.sv))
-TB_FILE     := $(wildcard $(MODULE)*.cpp)
+TB_NAME     := $(basename $(notdir $(TB)))
+OBJ_DIR     := $(BUILD_DIR)/obj_dir_$(TB_NAME)
+STAMP_FILE  := $(BUILD_DIR)/.stamp.verilate.$(MODULE).$(TB_NAME)
 
 ifneq ($(MAKECMDGOALS),clean) # always allow "make clean"
-ifeq ($(wildcard $(TB_FILE)),)
-$(error No C++ testbench found matching "$(MODULE)*.cpp" in tb/)
+ifeq ($(wildcard $(TB)),)
+$(error Testbench file "$(TB)" not found in tb/)
 endif
 endif
 
-ALL_SOURCES := $(PKG_FILES) $(SRC_VERILOG) $(TB_FILE)
+ALL_SOURCES := $(PKG_FILES) $(SRC_VERILOG) $(TB)
 
 VERILATOR_FLAGS += -cc --exe
 VERILATOR_FLAGS += -x-assign fast
@@ -29,7 +33,7 @@ VERILATOR_FLAGS += --LDFLAGS -lyaml-cpp
 VERILATOR_FLAGS += --trace-vcd
 VERILATOR_FLAGS += --assert
 VERILATOR_FLAGS += --coverage
-VERILATOR_FLAGS += -Mdir obj_dir
+VERILATOR_FLAGS += -Mdir $(OBJ_DIR)
 
 ifeq ($(MODULE),hp_soc)
 	VERILATOR_FLAGS += -GINIT_FILE='"roms/firmware.hex"'
@@ -41,22 +45,25 @@ all: simulate
 
 verilate: .stamp.verilate
 
-.stamp.verilate: $(ALL_SOURCES)
+$(STAMP_FILE): $(ALL_SOURCES)
 	@echo "### VERILATING $(MODULE) ###"
+	@mkdir -p $(BUILD_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) $(ALL_SOURCES) --top-module $(MODULE)
-	@touch .stamp.verilate
+	@touch $(STAMP_FILE)
 
-build: obj_dir/V$(MODULE)
+.stamp.verilate: $(STAMP_FILE)
 
-obj_dir/V$(MODULE): .stamp.verilate
+build: $(OBJ_DIR)/V$(MODULE)
+
+$(OBJ_DIR)/V$(MODULE): .stamp.verilate
 	@echo "### BUILDING SIM ###"
-	$(MAKE) -C obj_dir -f V$(MODULE).mk V$(MODULE)
+	$(MAKE) -C $(OBJ_DIR) -f V$(MODULE).mk V$(MODULE)
 
 simulate: build
 	@echo "### SIMULATING ###"
 	@rm -rf logs
 	@mkdir -p logs/waves
-	@obj_dir/V$(MODULE) +trace $(SIM_ARGS)
+	@$(OBJ_DIR)/V$(MODULE) +trace $(SIM_ARGS)
 
 coverage:
 	@echo "### COVERAGE ###"
@@ -64,4 +71,4 @@ coverage:
 	verilator_coverage --annotate logs/annotated logs/coverage.dat
 
 clean:
-	rm -rf .stamp.* obj_dir logs *.log *.dmp *.vcd coverage.dat core
+	rm -rf $(BUILD_DIR) logs *.log *.dmp *.vcd coverage.dat core
