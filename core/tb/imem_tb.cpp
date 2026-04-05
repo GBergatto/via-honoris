@@ -11,7 +11,7 @@ int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
 
     // 1) Read the hex file into a vector of expected values
-    const std::string hex_path = "tb/roms/firmware.hex";
+    const std::string hex_path = "roms/firmware.hex";
     std::ifstream hexfile(hex_path);
     if (!hexfile.is_open()) {
         std::cerr << "× ERROR: Cannot open " << hex_path << "\n";
