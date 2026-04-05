@@ -16,7 +16,7 @@ always_comb begin
       ALU_ADD: out = op1 + op2;
       ALU_SUB: out = op1 - op2;
       ALU_SLL: out = op1 << op2[4:0];
-      ALU_SLT: out = (op1 < op2) ? 1 : 0;
+      ALU_SLT: out = ($signed(op1) < $signed(op2)) ? 1 : 0;
       ALU_SLTU: out = (op1 < op2) ? 1 : 0;
       ALU_XOR: out = op1 ^ op2;
       ALU_SRL: out = op1 >> op2[4:0];
