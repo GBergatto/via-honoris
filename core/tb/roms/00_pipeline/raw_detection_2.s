@@ -4,3 +4,5 @@ addi x2, x0, 2
 addi x3, x2, 1
 addi x4, x0, 4
 addi x5, x0, 5
+
+ebreak

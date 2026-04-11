@@ -4,6 +4,7 @@
  # ---------------------------------------------------------
  # 1. Setup Base Registers
  # ---------------------------------------------------------
+ lui x15, 0x80000
  addi x1, x0, 10      # x1 = 10
 
  # ---------------------------------------------------------
@@ -27,25 +28,27 @@
  # memory gets the old value of x6 (0 or garbage).
  # ---------------------------------------------------------
  addi x6, x0, 55      # x6 = 55
- sw   x6, 0(x0)       # Mem[0] = 55. (Needs forwarding from EX to Store Data)
+ sw   x6, 1024(x15)       # Mem[1024] = 55. (Needs forwarding from EX to Store Data)
 
  # ---------------------------------------------------------
  # 5. Load-Use Hazard (The "Stall" Test)
  # The ADD uses x7 immediately. The CPU *must* stall 1 cycle.
  # ---------------------------------------------------------
- lw   x7, 0(x0)       # Load 55 from address 0 into x7
+ lw   x7, 1024(x15)       # Load 55 from address 1024 into x7
  add  x8, x7, x1      # x8 = 55 + 10 = 65 (Stall + Forward form WB)
 
  # ---------------------------------------------------------
  # 6. Load-Store Hazard
  # Load x9, then store it. Requires stall or WB-forwarding.
  # ---------------------------------------------------------
- lw   x9, 0(x0)       # x9 = 55
- sw   x9, 4(x0)       # Mem[4] = 55.
+ lw   x9, 1024(x15)       # x9 = 55
+ sw   x9, 1028(x15)       # Mem[1028] = 55.
 
  # ---------------------------------------------------------
  # 7. Verification Read
- # Read back the value we just stored at 4 to ensure SW worked
+ # Read back the value we just stored at 1028 to ensure SW worked
  # ---------------------------------------------------------
- lw   x10, 4(x0)      # x10 = 55
+ lw   x10, 1028(x15)      # x10 = 55
 
+
+ebreak
