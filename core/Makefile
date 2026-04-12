@@ -1,4 +1,4 @@
-.PHONY: all verify rvtests sim sim-fw bitstream prog clean fw tb fpga waves
+.PHONY: all verify rvtests sim bitstream prog clean fw tb fpga waves
 
 # --- Configuration Variables ---
 MODULE ?= hp_soc
