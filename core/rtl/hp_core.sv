@@ -92,6 +92,11 @@ always_ff @(posedge clk or posedge rst) begin
    end else if (!ext_stall) begin
       // Record if a branch was taken so we can flush the incoming instruction next cycle
       flush_D <= pc_src_E || pc_src_W;
+   end
+end
+
+always_ff @(posedge clk) begin
+   if (!ext_stall) begin
       if (!stall) begin
          pc_D <= pc_F;
          pc_plus4_D <= pc_F + 4;
@@ -383,18 +388,23 @@ always_ff @(posedge clk or posedge rst) begin
          ctrl_M.mem_size <= ctrl_E.mem_size;
          ctrl_M.mem_unsigned <= ctrl_E.mem_unsigned;
 
-         alu_out_M <= alu_out_D;
-         write_data_M <= write_data_E;
-         rd_M <= rd_E;
-         pc_plus4_M <= pc_plus4_E;
          is_csr_M <= is_csr_E;
-         csr_read_data_M <= csr_read_data_E;
-         csr_write_data_M <= csr_write_data_E;
-         csr_addr_M <= csr_addr_E;
          is_env_trap_M <= is_env_trap_E;
          is_mret_M <= is_mret_E;
-         pc_M <= pc_E;
       end
+   end
+end
+
+always_ff @(posedge clk) begin
+   if (!ext_stall && !pc_src_W) begin
+      alu_out_M <= alu_out_D;
+      write_data_M <= write_data_E;
+      rd_M <= rd_E;
+      pc_M <= pc_E;
+      pc_plus4_M <= pc_plus4_E;
+      csr_read_data_M <= csr_read_data_E;
+      csr_write_data_M <= csr_write_data_E;
+      csr_addr_M <= csr_addr_E;
    end
 end
 
@@ -435,24 +445,29 @@ logic [31:0] pc_plus4_W, alu_out_W, mem_out_W, csr_read_data_W;
 /* MEM/WB pipeline registers */
 always_ff @(posedge clk or posedge rst) begin
    if (rst) begin
-      ctrl_W.reg_write <= 0;
+      ctrl_W <= '0;
       is_csr_W <= 1'b0;
       is_env_trap_W <= 1'b0;
       is_mret_W <= 1'b0;
    end else if (!ext_stall) begin
-      alu_out_W <= alu_out_M;
-      rd_W <= rd_M;
-      ctrl_W.result_src <= ctrl_M.result_src;
       ctrl_W.reg_write <= ctrl_M.reg_write;
+      ctrl_W.result_src <= ctrl_M.result_src;
       ctrl_W.mem_size <= ctrl_M.mem_size;
       ctrl_W.mem_unsigned <= ctrl_M.mem_unsigned;
-      pc_plus4_W <= pc_plus4_M;
       is_csr_W <= is_csr_M;
+      is_env_trap_W <= is_env_trap_M;
+      is_mret_W <= is_mret_M;
+   end
+end
+
+always_ff @(posedge clk) begin
+   if (!ext_stall) begin
+      alu_out_W <= alu_out_M;
+      rd_W <= rd_M;
+      pc_plus4_W <= pc_plus4_M;
       csr_read_data_W <= csr_read_data_M;
       csr_write_data_W <= csr_write_data_M;
       csr_addr_W <= csr_addr_M;
-      is_env_trap_W <= is_env_trap_M;
-      is_mret_W <= is_mret_M;
       pc_W <= pc_M;
    end
 end
