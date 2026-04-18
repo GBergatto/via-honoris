@@ -9,3 +9,5 @@ add x3, x1, x2
 sub x5, x3, x4
 or  x7, x3, x6
 and x9, x3, x8
+
+ebreak

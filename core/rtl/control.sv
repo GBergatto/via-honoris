@@ -3,7 +3,6 @@ import core_types_pkg::*;
 
 module control (
    input opcode_e opcode,
-   /* verilator lint_off UNUSEDSIGNAL */
    input logic [2:0] funct3,
    /* verilator lint_off UNUSEDSIGNAL */
    input logic [6:0] funct7,
@@ -26,6 +25,11 @@ assign op2_src = (opcode != OPC_OP) && (opcode != OPC_BRANCH);
 always_comb begin
    case (opcode)
       OPC_BRANCH, OPC_STORE:
+         reg_write = 1'b0;
+      OPC_SYSTEM:
+         // ECALL/EBREAK don't write rd
+         reg_write = (funct3 != 3'b000);
+      OPC_MISC_MEM:
          reg_write = 1'b0;
       default:
          reg_write = 1'b1;

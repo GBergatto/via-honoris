@@ -1,5 +1,6 @@
 # Base address
-lui x1, 0
+lui x1, 0x80000
+addi x1, x1, 1024
 # Prepare data
 addi x2, x0, 0x12   # byte 0 (little endian) -> 0x12
 addi x3, x0, 0x34   # byte 1 -> 0x34
@@ -40,3 +41,5 @@ addi x10, x0, -1
 sh x10, 10(x1)      # mem[10] = 0xFFFF
 lh x13, 10(x1)      # x13 = 0xFFFFFFFF
 lhu x14, 10(x1)     # x14 = 0x0000FFFF
+
+ebreak

@@ -6,18 +6,9 @@ PROJ = custom_riscv
 RTL_DIR  = ../rtl
 FW_DIR   = ../fw
 
-# Order matters for sv2v: Package first!
 SV_FILES = \
     $(RTL_DIR)/core_types_pkg.sv \
-    $(RTL_DIR)/alu.sv \
-    $(RTL_DIR)/alu_control.sv \
-    $(RTL_DIR)/control.sv \
-    $(RTL_DIR)/immgen.sv \
-    $(RTL_DIR)/regfile.sv \
-    $(RTL_DIR)/dmem.sv \
-    $(RTL_DIR)/imem.sv \
-    $(RTL_DIR)/hp_core.sv \
-    $(RTL_DIR)/hp_soc.sv \
+    $(filter-out $(RTL_DIR)/core_types_pkg.sv, $(wildcard $(RTL_DIR)/*.sv)) \
     top_ecp5evn.sv
 
 HEX_FILE = $(FW_DIR)/firmware.hex

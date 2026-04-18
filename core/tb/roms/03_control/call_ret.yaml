@@ -1,4 +1,3 @@
-# x1 depends on start address, but if start=0x0, jal is at 0x4, so x1=0x8
-x1: 8
+x1: 0x80000008
 x10: 15     # Result from function
 x11: 16     # Verified we returned correctly

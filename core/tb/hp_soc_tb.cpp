@@ -18,6 +18,7 @@
 namespace fs = std::filesystem;
 
 #define TESTNAME_LENGTH 25
+#define MAX_SIM_CYCLES 50000 // Timeout to prevent infinite loops
 #define ROMS_DIR "roms"
 #define FW_DIR "../fw"
 #define FIRMWARE_HEX "firmware.hex"
@@ -113,9 +114,19 @@ void run_test(const fs::path& asm_file, const fs::path& yaml_file) {
     dut->rst = 0;
 
     // 4) run
-    for (int cycle = 0; cycle < 5 * n_instructions; ++cycle) {
+    int cycle = 0;
+    bool timeout = true;
+
+    while (cycle < MAX_SIM_CYCLES) {
         dut->clk = 1; dut->eval(); tfp->dump(time++);
         dut->clk = 0; dut->eval(); tfp->dump(time++);
+        cycle++;
+
+        // Snoop for EBREAK
+        if (dut->hp_soc->core->is_env_trap_W && dut->hp_soc->core->csr_addr_W == 0x001) {
+            timeout = false;
+            break;
+        }
     }
 
     // 5) check registers
@@ -137,7 +148,10 @@ void run_test(const fs::path& asm_file, const fs::path& yaml_file) {
     // Print Test Name
     std::cout << std::left << std::setw(TESTNAME_LENGTH) << asm_file.stem().string();
 
-    if (isPassing) {
+    if (timeout) {
+        std::cout << RED << "[TIMEOUT]" << RESET << std::endl;
+        std::cout << log_buffer.str();
+    } else if (isPassing) {
         std::cout << GREEN << "[PASS]" << RESET << std::endl;
     } else {
         std::cout << RED << "[FAIL]" << RESET << std::endl;

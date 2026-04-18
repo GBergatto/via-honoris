@@ -8,3 +8,5 @@ auipc x3, 0x1000   # x3 = 0x00000008 + 0x01000000 = 0x01000008
 # pc here is 0x0000000c
 auipc x4, 0x0      # x4 = 0x0000000c
 
+
+ebreak
