@@ -4,6 +4,7 @@ import core_types_pkg::*;
 module hp_core (
    input  logic clk,
    input  logic rst,
+   input  logic ext_stall, // stall from external bus
    output logic core_stall,
 
    /* Instruction memory interface */
@@ -73,7 +74,7 @@ assign pc_next = (pc_src_W) ? pc_target_W : // traps
 always_ff @(posedge clk or posedge rst) begin
    if (rst)
       pc_F <= RESET_PC;
-   else if (!stall)
+   else if (!stall && !ext_stall)
       pc_F <= pc_next;
 end
 
@@ -88,7 +89,7 @@ logic flush_D;
 always_ff @(posedge clk or posedge rst) begin
    if (rst) begin
       flush_D <= 1'b0;
-   end else begin
+   end else if (!ext_stall) begin
       // Record if a branch was taken so we can flush the incoming instruction next cycle
       flush_D <= pc_src_E || pc_src_W;
       if (!stall) begin
@@ -221,28 +222,30 @@ always_ff @(posedge clk or posedge rst) begin
       is_env_trap_E <= 1'b0;
       is_mret_E <= 1'b0;
       is_csr_E <= 1'b0;
-   end else if (pc_src_E || pc_src_W || stall) begin
-      // inject bubble in the EX stage, i.e. do nothing for one cycle
-      ctrl_E <= '0;
-      is_env_trap_E <= 1'b0;
-      is_mret_E <= 1'b0;
-      is_csr_E <= 1'b0;
+   end else if (!ext_stall) begin
+      if (pc_src_E || pc_src_W || stall) begin
+         // inject bubble in the EX stage, i.e. do nothing for one cycle
+         ctrl_E <= '0;
+         is_env_trap_E <= 1'b0;
+         is_mret_E <= 1'b0;
+         is_csr_E <= 1'b0;
 
-   end else begin
-      ctrl_E <= ctrl_D;
-      rs1_data_E <= rs1_data_D;
-      rs2_data_E <= rs2_data_D;
-      imm_E <= imm_D;
-      rs1_E <= rs1_D;
-      rs2_E <= rs2_D;
-      rd_E <= rd_D;
-      pc_E <= pc_D;
-      pc_plus4_E <= pc_plus4_D;
-      csr_addr_E <= csr_addr_D;
-      is_env_trap_E <= is_env_trap_D;
-      is_mret_E <= is_mret_D;
-      is_csr_E <= is_csr_D;
-      csr_read_data_E <= csr_read_data_D;
+      end else begin
+         ctrl_E <= ctrl_D;
+         rs1_data_E <= rs1_data_D;
+         rs2_data_E <= rs2_data_D;
+         imm_E <= imm_D;
+         rs1_E <= rs1_D;
+         rs2_E <= rs2_D;
+         rd_E <= rd_D;
+         pc_E <= pc_D;
+         pc_plus4_E <= pc_plus4_D;
+         csr_addr_E <= csr_addr_D;
+         is_env_trap_E <= is_env_trap_D;
+         is_mret_E <= is_mret_D;
+         is_csr_E <= is_csr_D;
+         csr_read_data_E <= csr_read_data_D;
+      end
    end
 end
 
@@ -365,31 +368,33 @@ always_ff @(posedge clk or posedge rst) begin
       is_csr_M <= 1'b0;
       is_env_trap_M <= 1'b0;
       is_mret_M <= 1'b0;
-   end else if (pc_src_W) begin
-      // flush MEM stage when a trap resolves in WB
-      ctrl_M <= '0;
-      is_csr_M <= 1'b0;
-      is_env_trap_M <= 1'b0;
-      is_mret_M <= 1'b0;
-   end else begin
-      ctrl_M.reg_write <= ctrl_E.reg_write;
-      ctrl_M.mem_read  <= ctrl_E.mem_read;
-      ctrl_M.mem_write <= ctrl_E.mem_write;
-      ctrl_M.result_src <= ctrl_E.result_src;
-      ctrl_M.mem_size <= ctrl_E.mem_size;
-      ctrl_M.mem_unsigned <= ctrl_E.mem_unsigned;
+   end else if (!ext_stall) begin
+      if (pc_src_W) begin
+         // flush MEM stage when a trap resolves in WB
+         ctrl_M <= '0;
+         is_csr_M <= 1'b0;
+         is_env_trap_M <= 1'b0;
+         is_mret_M <= 1'b0;
+      end else begin
+         ctrl_M.reg_write <= ctrl_E.reg_write;
+         ctrl_M.mem_read  <= ctrl_E.mem_read;
+         ctrl_M.mem_write <= ctrl_E.mem_write;
+         ctrl_M.result_src <= ctrl_E.result_src;
+         ctrl_M.mem_size <= ctrl_E.mem_size;
+         ctrl_M.mem_unsigned <= ctrl_E.mem_unsigned;
 
-      alu_out_M <= alu_out_D;
-      write_data_M <= write_data_E;
-      rd_M <= rd_E;
-      pc_plus4_M <= pc_plus4_E;
-      is_csr_M <= is_csr_E;
-      csr_read_data_M <= csr_read_data_E;
-      csr_write_data_M <= csr_write_data_E;
-      csr_addr_M <= csr_addr_E;
-      is_env_trap_M <= is_env_trap_E;
-      is_mret_M <= is_mret_E;
-      pc_M <= pc_E;
+         alu_out_M <= alu_out_D;
+         write_data_M <= write_data_E;
+         rd_M <= rd_E;
+         pc_plus4_M <= pc_plus4_E;
+         is_csr_M <= is_csr_E;
+         csr_read_data_M <= csr_read_data_E;
+         csr_write_data_M <= csr_write_data_E;
+         csr_addr_M <= csr_addr_E;
+         is_env_trap_M <= is_env_trap_E;
+         is_mret_M <= is_mret_E;
+         pc_M <= pc_E;
+      end
    end
 end
 
@@ -434,7 +439,7 @@ always_ff @(posedge clk or posedge rst) begin
       is_csr_W <= 1'b0;
       is_env_trap_W <= 1'b0;
       is_mret_W <= 1'b0;
-   end else begin
+   end else if (!ext_stall) begin
       alu_out_W <= alu_out_M;
       rd_W <= rd_M;
       ctrl_W.result_src <= ctrl_M.result_src;

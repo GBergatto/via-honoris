@@ -1,6 +1,6 @@
 #include "Vhp_soc.h"
 #include "Vhp_soc_hp_soc.h"
-#include "Vhp_soc_dmem.h"
+#include "Vhp_soc_dmem_wb.h"
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
