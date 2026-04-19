@@ -14,8 +14,11 @@ module csr_file (
    input  logic        trap,
    input  logic [31:0] trap_pc,
    input  logic [31:0] trap_cause,
-   /* verilator lint_off UNUSEDSIGNAL */
    input  logic        mret,
+
+   // Interrupts
+   input  logic        mtip,
+   output logic        irq_pending,
 
    // Continuous outputs for PC redirection
    output logic [31:0] mtvec_out,
@@ -40,11 +43,13 @@ module csr_file (
 
    assign mtvec_out = csr_mtvec;
    assign mepc_out = csr_mepc;
+   assign irq_pending = mtip && csr_mie[7] && csr_mstatus[3];
 
    always_comb begin
       case (read_addr)
          CSR_MSTATUS:  read_data = csr_mstatus;
          CSR_MIE:      read_data = csr_mie;
+         CSR_MIP:      read_data = {24'b0, mtip, 7'b0};
          CSR_MTVEC:    read_data = csr_mtvec;
          CSR_MSCRATCH: read_data = csr_mscratch;
          CSR_MEPC:     read_data = csr_mepc;
@@ -63,9 +68,9 @@ module csr_file (
       endcase
    end
 
-   always_ff @(posedge clk or posedge rst) begin
+    always_ff @(posedge clk or posedge rst) begin
       if (rst) begin
-         csr_mstatus <= 32'b0;
+         csr_mstatus <= 32'h0000_1800; // MPP (bits 12:11) hardwired to 2'b11 (M-mode)
          csr_mie <= 32'b0;
          csr_mtvec <= 32'b0;
          csr_mscratch <= 32'b0;
@@ -84,9 +89,16 @@ module csr_file (
          if (trap) begin
             csr_mepc <= trap_pc;
             csr_mcause <= trap_cause;
-         end else if (write_enable) begin
+            // Push MIE to MPIE, then clear MIE
+            csr_mstatus[7] <= csr_mstatus[3];
+            csr_mstatus[3] <= 1'b0;
+         end else if (mret) begin
+            // Pop MPIE to MIE, then set MPIE to 1
+            csr_mstatus[3] <= csr_mstatus[7];
+            csr_mstatus[7] <= 1'b1;
+          end else if (write_enable) begin
             case (write_addr)
-               CSR_MSTATUS:  csr_mstatus <= write_data;
+               CSR_MSTATUS:  csr_mstatus <= {write_data[31:13], 2'b11, write_data[10:0]}; // Preserve MPP = 2'b11
                CSR_MIE:      csr_mie <= write_data;
                CSR_MTVEC:    csr_mtvec <= write_data;
                CSR_MSCRATCH: csr_mscratch <= write_data;

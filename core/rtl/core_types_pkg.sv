@@ -61,6 +61,7 @@ package core_types_pkg;
       CSR_MSCRATCH  = 12'h340,
       CSR_MEPC      = 12'h341,
       CSR_MCAUSE    = 12'h342,
+      CSR_MIP       = 12'h344,
       CSR_PMPCFG0   = 12'h3A0,
       CSR_PMPADDR0  = 12'h3B0,
       CSR_MNSTATUS  = 12'h744,

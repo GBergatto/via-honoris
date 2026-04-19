@@ -6,6 +6,7 @@ module hp_core (
    input  logic rst,
    input  logic ext_stall, // stall from external bus
    output logic core_stall,
+   input  logic mtip,
 
    /* Instruction memory interface */
    output logic [31:0] imem_addr,
@@ -116,14 +117,14 @@ immgen immgen_i (
 );
 
 /* Decoder */
-logic [6:0] opcode;
+opcode_e opcode;
 logic [4:0] rd_D;
 logic [4:0] rs1_D;
 logic [4:0] rs2_D;
 logic [6:0] funct7;
 
 always_comb begin
-   opcode        = inst_D[6:0];
+   opcode        = opcode_e'(inst_D[6:0]);
    rd_D          = inst_D[11:7];
    ctrl_D.funct3 = inst_D[14:12];
    rs1_D         = inst_D[19:15];
@@ -182,8 +183,10 @@ regfile regfile_i (
 );
 
 csr_addr_e csr_addr_W /* verilator public */;
+logic is_interrupt_W;
 logic [31:0] trap_cause_W;
-assign trap_cause_W = (csr_addr_W == 12'h001)
+assign trap_cause_W = is_interrupt_W ? 32'h8000_0007 :
+                      (csr_addr_W == 12'h001)
                         ? 32'd3   // EBREAK -> breakpoint
                         : 32'd11; // M-mode
 
@@ -191,6 +194,10 @@ logic [31:0] pc_W;
 logic [31:0] csr_read_data_D, csr_write_data_W;
 logic is_mret_W, is_csr_W;
 logic is_env_trap_W /* verilator public */;
+logic is_interrupt_D, is_interrupt_E, is_interrupt_M;
+logic irq_pending;
+
+assign is_interrupt_D = irq_pending && !is_interrupt_E && !is_interrupt_M && !is_interrupt_W;
 
 /* CSR File */
 logic [31:0] mtvec_out, mepc_out;
@@ -202,10 +209,12 @@ csr_file csr_file_i (
    .write_enable (is_csr_W),
    .write_addr (csr_addr_W),
    .write_data (csr_write_data_W),
-   .trap (is_env_trap_W),
+   .trap (is_env_trap_W | is_interrupt_W),
    .trap_pc (pc_W),
    .trap_cause (trap_cause_W),
    .mret (is_mret_W),
+   .mtip (mtip),
+   .irq_pending (irq_pending),
    .mtvec_out (mtvec_out),
    .mepc_out (mepc_out)
 );
@@ -227,14 +236,15 @@ always_ff @(posedge clk or posedge rst) begin
       is_env_trap_E <= 1'b0;
       is_mret_E <= 1'b0;
       is_csr_E <= 1'b0;
+      is_interrupt_E <= 1'b0;
    end else if (!ext_stall) begin
-      if (pc_src_E || pc_src_W || stall) begin
+      if (pc_src_E || pc_src_W || stall || is_interrupt_D) begin
          // inject bubble in the EX stage, i.e. do nothing for one cycle
          ctrl_E <= '0;
          is_env_trap_E <= 1'b0;
          is_mret_E <= 1'b0;
          is_csr_E <= 1'b0;
-
+         is_interrupt_E <= is_interrupt_D && !pc_src_E && !pc_src_W && !stall;
       end else begin
          ctrl_E <= ctrl_D;
          rs1_data_E <= rs1_data_D;
@@ -243,13 +253,24 @@ always_ff @(posedge clk or posedge rst) begin
          rs1_E <= rs1_D;
          rs2_E <= rs2_D;
          rd_E <= rd_D;
-         pc_E <= pc_D;
          pc_plus4_E <= pc_plus4_D;
          csr_addr_E <= csr_addr_D;
          is_env_trap_E <= is_env_trap_D;
          is_mret_E <= is_mret_D;
          is_csr_E <= is_csr_D;
          csr_read_data_E <= csr_read_data_D;
+         is_interrupt_E <= 1'b0;
+      end
+   end
+end
+
+/* PC update for ID/EX */
+always_ff @(posedge clk) begin
+   if (!ext_stall) begin
+      if (is_interrupt_D && !pc_src_E && !pc_src_W && !stall) begin
+         pc_E <= pc_D; // Pass the interrupted instruction's PC down
+      end else if (!(pc_src_E || pc_src_W || stall || is_interrupt_D)) begin
+         pc_E <= pc_D;
       end
    end
 end
@@ -373,6 +394,7 @@ always_ff @(posedge clk or posedge rst) begin
       is_csr_M <= 1'b0;
       is_env_trap_M <= 1'b0;
       is_mret_M <= 1'b0;
+      is_interrupt_M <= 1'b0;
    end else if (!ext_stall) begin
       if (pc_src_W) begin
          // flush MEM stage when a trap resolves in WB
@@ -380,6 +402,7 @@ always_ff @(posedge clk or posedge rst) begin
          is_csr_M <= 1'b0;
          is_env_trap_M <= 1'b0;
          is_mret_M <= 1'b0;
+         is_interrupt_M <= 1'b0;
       end else begin
          ctrl_M.reg_write <= ctrl_E.reg_write;
          ctrl_M.mem_read  <= ctrl_E.mem_read;
@@ -391,6 +414,7 @@ always_ff @(posedge clk or posedge rst) begin
          is_csr_M <= is_csr_E;
          is_env_trap_M <= is_env_trap_E;
          is_mret_M <= is_mret_E;
+         is_interrupt_M <= is_interrupt_E;
       end
    end
 end
@@ -449,6 +473,7 @@ always_ff @(posedge clk or posedge rst) begin
       is_csr_W <= 1'b0;
       is_env_trap_W <= 1'b0;
       is_mret_W <= 1'b0;
+      is_interrupt_W <= 1'b0;
    end else if (!ext_stall) begin
       ctrl_W.reg_write <= ctrl_M.reg_write;
       ctrl_W.result_src <= ctrl_M.result_src;
@@ -457,6 +482,7 @@ always_ff @(posedge clk or posedge rst) begin
       is_csr_W <= is_csr_M;
       is_env_trap_W <= is_env_trap_M;
       is_mret_W <= is_mret_M;
+      is_interrupt_W <= is_interrupt_M;
    end
 end
 
@@ -474,8 +500,11 @@ end
 
 
 /* PC Target W for traps */
-assign pc_src_W = is_env_trap_W || is_mret_W;
-assign pc_target_W = (is_mret_W) ? mepc_out : ((mtvec_out[1:0] == 2'b01) ? {mtvec_out[31:2], 2'b00} : mtvec_out);
+assign pc_src_W = is_env_trap_W || is_mret_W || is_interrupt_W;
+assign pc_target_W = (is_mret_W) ? mepc_out : 
+                     ((mtvec_out[1:0] == 2'b01 && is_interrupt_W) 
+                         ? {mtvec_out[31:2], 2'b00} + {trap_cause_W[29:0], 2'b00}
+                         : {mtvec_out[31:2], 2'b00});
 
 /* Read Data Memory */
 logic [7:0] byte_data;
