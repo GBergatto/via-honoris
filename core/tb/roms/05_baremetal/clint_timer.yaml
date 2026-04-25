@@ -1,0 +1,2 @@
+x10: 0x00000001  # Confirms the trap handler executed and returned
+x11: 0x00001337  # Confirms mcause was exactly 0x80000007

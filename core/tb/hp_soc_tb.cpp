@@ -22,6 +22,8 @@ namespace fs = std::filesystem;
 #define ROMS_DIR "roms"
 #define FW_DIR "../fw"
 #define FIRMWARE_HEX "firmware.hex"
+#define ASSEMBLER_CMD "riscv32-unknown-elf-as -march=rv32i_zicsr -mabi=ilp32 "
+#define LINKER_CMD "riscv32-unknown-elf-ld -Ttext 0x80000000 "
 
 // ANSI colors helpers
 #define RESET   "\033[0m"
@@ -53,13 +55,17 @@ int bin_to_hex(const fs::path& bin_file, const fs::path& hex_file) {
 
 // Assemble RISC-V assembly file into firmaware.hex
 int assemble_to_hex(const fs::path& asm_file, const fs::path& hex_file) {
+    std::string obj_file = asm_file.stem().string() + ".o";
     std::string elf_file = asm_file.stem().string() + ".elf";
     std::string bin_file = asm_file.stem().string() + ".bin";
 
-    // Assemble
-    if (std::system(("riscv32-unknown-elf-as -march=rv32i -mabi=ilp32 " 
-                    + asm_file.string() + " -o " + elf_file).c_str()) != 0)
+    // Assemble to object file
+    if (std::system((ASSEMBLER_CMD + asm_file.string() + " -o " + obj_file).c_str()) != 0)
         throw std::runtime_error("Assembler failed");
+
+    // Link
+    if (std::system((LINKER_CMD + obj_file + " -o " + elf_file).c_str()) != 0)
+        throw std::runtime_error("Linker failed");
 
     // Objcopy to raw binary
     if (std::system(("riscv32-unknown-elf-objcopy -O binary " + elf_file
@@ -70,6 +76,7 @@ int assemble_to_hex(const fs::path& asm_file, const fs::path& hex_file) {
     int n_instructions = bin_to_hex(bin_file, hex_file);
 
     // Cleanup
+    fs::remove(obj_file);
     fs::remove(elf_file);
     fs::remove(bin_file);
 

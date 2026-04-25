@@ -268,7 +268,9 @@ end
 always_ff @(posedge clk) begin
    if (!ext_stall) begin
       if (is_interrupt_D && !pc_src_E && !pc_src_W && !stall) begin
-         pc_E <= pc_D; // Pass the interrupted instruction's PC down
+         // Pass the interrupted instruction's PC down
+         // If inst_D is being flushed, pass down the next one
+         pc_E <= flush_D ? pc_F : pc_D;
       end else if (!(pc_src_E || pc_src_W || stall || is_interrupt_D)) begin
          pc_E <= pc_D;
       end
@@ -475,14 +477,23 @@ always_ff @(posedge clk or posedge rst) begin
       is_mret_W <= 1'b0;
       is_interrupt_W <= 1'b0;
    end else if (!ext_stall) begin
-      ctrl_W.reg_write <= ctrl_M.reg_write;
-      ctrl_W.result_src <= ctrl_M.result_src;
-      ctrl_W.mem_size <= ctrl_M.mem_size;
-      ctrl_W.mem_unsigned <= ctrl_M.mem_unsigned;
-      is_csr_W <= is_csr_M;
-      is_env_trap_W <= is_env_trap_M;
-      is_mret_W <= is_mret_M;
-      is_interrupt_W <= is_interrupt_M;
+      if (pc_src_W) begin
+         // Squash the trailing instruction entering WB when a trap or mret resolves
+         ctrl_W <= '0;
+         is_csr_W <= 1'b0;
+         is_env_trap_W <= 1'b0;
+         is_mret_W <= 1'b0;
+         is_interrupt_W <= 1'b0;
+      end else begin
+         ctrl_W.reg_write <= ctrl_M.reg_write;
+         ctrl_W.result_src <= ctrl_M.result_src;
+         ctrl_W.mem_size <= ctrl_M.mem_size;
+         ctrl_W.mem_unsigned <= ctrl_M.mem_unsigned;
+         is_csr_W <= is_csr_M;
+         is_env_trap_W <= is_env_trap_M;
+         is_mret_W <= is_mret_M;
+         is_interrupt_W <= is_interrupt_M;
+      end
    end
 end
 
