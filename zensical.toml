@@ -24,8 +24,19 @@ nav = [
   {"Home" = "index.md"},
   { "CPU" = [
      "cpu/cpu.md",
-     {"Implementation" = [ "cpu/architecture.md" ] },
-     #{"Deployment" = [ "cpu/fpga.md" ] },
+     { "Core" = [
+        "cpu/core/microarchitecture.md",
+        "cpu/core/hazards.md",
+        "cpu/core/traps.md"
+     ]},
+     { "SoC" = [
+        "cpu/soc/sys-architecture.md",
+#"cpu/soc/wishbone-bus.md"
+     ]},
+     { "Deployment" = [
+        "cpu/deployment/fpga.md",
+#"cpu/deployment/ecp5.md"
+     ]},
   ]},
   {"OS" = "os/os.md"},
 ]

@@ -7,7 +7,7 @@ core, which follows the classical pipeline architecture found in computer
 architecture textbooks, is wrapped into an SoC to allow it to interact with
 external hardware and be deployed on an FPGA board.
 
-[Architecture]: architecture/
+[Architecture]: core/microarchitecture/
 
 ## Project structure
 
