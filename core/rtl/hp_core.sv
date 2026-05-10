@@ -133,12 +133,12 @@ always_comb begin
 end
 
 logic [31:0] write_data_E, rs1_fwd, op1, op2, alu_out_M;
-logic is_env_trap_D, is_mret_D, is_csr_D;
+logic is_sync_exception_D, is_mret_D, is_csr_D;
 csr_addr_e csr_addr_D;
 
 assign csr_addr_D = csr_addr_e'(inst_D[31:20]);
 assign is_csr_D = (opcode == OPC_SYSTEM) && (ctrl_D.funct3 != 3'b000);
-assign is_env_trap_D = (opcode == OPC_SYSTEM) && (ctrl_D.funct3 == 3'b000) && (csr_addr_D[11:1] == 11'b0);
+assign is_sync_exception_D = (opcode == OPC_SYSTEM) && (ctrl_D.funct3 == 3'b000) && (csr_addr_D[11:1] == 11'b0);
 assign is_mret_D = (opcode == OPC_SYSTEM) && (ctrl_D.funct3 == 3'b000) && (csr_addr_D == 12'h302);
 
 /* Control Logic */
@@ -193,7 +193,7 @@ assign trap_cause_W = is_interrupt_W ? 32'h8000_0007 :
 logic [31:0] pc_W;
 logic [31:0] csr_read_data_D, csr_write_data_W;
 logic is_mret_W, is_csr_W;
-logic is_env_trap_W /* verilator public */;
+logic is_sync_exception_W /* verilator public */;
 logic is_interrupt_D, is_interrupt_E, is_interrupt_M;
 logic irq_pending;
 
@@ -209,7 +209,7 @@ csr_file csr_file_i (
    .write_enable (is_csr_W),
    .write_addr (csr_addr_W),
    .write_data (csr_write_data_W),
-   .trap (is_env_trap_W | is_interrupt_W),
+   .trap (is_sync_exception_W | is_interrupt_W),
    .trap_pc (pc_W),
    .trap_cause (trap_cause_W),
    .mret (is_mret_W),
@@ -226,14 +226,14 @@ logic [31:0] rs1_data_E, rs2_data_E, imm_E;
 logic [31:0] pc_E, pc_plus4_E;
 logic [31:0] csr_read_data_E, csr_write_data_E;
 logic [4:0] rd_E, rd_M, rs1_E, rs2_E;
-logic is_env_trap_E, is_mret_E, is_csr_E;
+logic is_sync_exception_E, is_mret_E, is_csr_E;
 csr_addr_e csr_addr_E;
 
 /* ID/EX pipeline registers */
 always_ff @(posedge clk or posedge rst) begin
    if (rst) begin
       ctrl_E <= '0;
-      is_env_trap_E <= 1'b0;
+      is_sync_exception_E <= 1'b0;
       is_mret_E <= 1'b0;
       is_csr_E <= 1'b0;
       is_interrupt_E <= 1'b0;
@@ -241,7 +241,7 @@ always_ff @(posedge clk or posedge rst) begin
       if (pc_src_E || pc_src_W || stall || is_interrupt_D) begin
          // inject bubble in the EX stage, i.e. do nothing for one cycle
          ctrl_E <= '0;
-         is_env_trap_E <= 1'b0;
+         is_sync_exception_E <= 1'b0;
          is_mret_E <= 1'b0;
          is_csr_E <= 1'b0;
          is_interrupt_E <= is_interrupt_D && !pc_src_E && !pc_src_W && !stall;
@@ -255,7 +255,7 @@ always_ff @(posedge clk or posedge rst) begin
          rd_E <= rd_D;
          pc_plus4_E <= pc_plus4_D;
          csr_addr_E <= csr_addr_D;
-         is_env_trap_E <= is_env_trap_D;
+         is_sync_exception_E <= is_sync_exception_D;
          is_mret_E <= is_mret_D;
          is_csr_E <= is_csr_D;
          csr_read_data_E <= csr_read_data_D;
@@ -386,7 +386,7 @@ assign pc_src_E = ctrl_E.jump || (ctrl_E.branch && branch_condition_E);
 // ===================================================================================
 logic [31:0] pc_M, pc_plus4_M, write_data_M;
 logic [31:0] csr_write_data_M;
-logic is_env_trap_M, is_mret_M;
+logic is_sync_exception_M, is_mret_M;
 csr_addr_e csr_addr_M;
 
 /* EX/MEM pipeline registers */
@@ -394,7 +394,7 @@ always_ff @(posedge clk or posedge rst) begin
    if (rst) begin
       ctrl_M <= '0;
       is_csr_M <= 1'b0;
-      is_env_trap_M <= 1'b0;
+      is_sync_exception_M <= 1'b0;
       is_mret_M <= 1'b0;
       is_interrupt_M <= 1'b0;
    end else if (!ext_stall) begin
@@ -402,7 +402,7 @@ always_ff @(posedge clk or posedge rst) begin
          // flush MEM stage when a trap resolves in WB
          ctrl_M <= '0;
          is_csr_M <= 1'b0;
-         is_env_trap_M <= 1'b0;
+         is_sync_exception_M <= 1'b0;
          is_mret_M <= 1'b0;
          is_interrupt_M <= 1'b0;
       end else begin
@@ -414,7 +414,7 @@ always_ff @(posedge clk or posedge rst) begin
          ctrl_M.mem_unsigned <= ctrl_E.mem_unsigned;
 
          is_csr_M <= is_csr_E;
-         is_env_trap_M <= is_env_trap_E;
+         is_sync_exception_M <= is_sync_exception_E;
          is_mret_M <= is_mret_E;
          is_interrupt_M <= is_interrupt_E;
       end
@@ -473,7 +473,7 @@ always_ff @(posedge clk or posedge rst) begin
    if (rst) begin
       ctrl_W <= '0;
       is_csr_W <= 1'b0;
-      is_env_trap_W <= 1'b0;
+      is_sync_exception_W <= 1'b0;
       is_mret_W <= 1'b0;
       is_interrupt_W <= 1'b0;
    end else if (!ext_stall) begin
@@ -481,7 +481,7 @@ always_ff @(posedge clk or posedge rst) begin
          // Squash the trailing instruction entering WB when a trap or mret resolves
          ctrl_W <= '0;
          is_csr_W <= 1'b0;
-         is_env_trap_W <= 1'b0;
+         is_sync_exception_W <= 1'b0;
          is_mret_W <= 1'b0;
          is_interrupt_W <= 1'b0;
       end else begin
@@ -490,7 +490,7 @@ always_ff @(posedge clk or posedge rst) begin
          ctrl_W.mem_size <= ctrl_M.mem_size;
          ctrl_W.mem_unsigned <= ctrl_M.mem_unsigned;
          is_csr_W <= is_csr_M;
-         is_env_trap_W <= is_env_trap_M;
+         is_sync_exception_W <= is_sync_exception_M;
          is_mret_W <= is_mret_M;
          is_interrupt_W <= is_interrupt_M;
       end
@@ -511,7 +511,7 @@ end
 
 
 /* PC Target W for traps */
-assign pc_src_W = is_env_trap_W || is_mret_W || is_interrupt_W;
+assign pc_src_W = is_sync_exception_W || is_mret_W || is_interrupt_W;
 assign pc_target_W = (is_mret_W) ? mepc_out : 
                      ((mtvec_out[1:0] == 2'b01 && is_interrupt_W) 
                          ? {mtvec_out[31:2], 2'b00} + {trap_cause_W[29:0], 2'b00}

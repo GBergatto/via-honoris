@@ -11,7 +11,8 @@ external hardware and be deployed on an FPGA board.
 
 ## Project structure
 
-The `virtus-rv/` directory contains the core implementation and build system:
+The `virtus-rv/` directory contains the processor's implementation and build
+system:
 
 - `rtl/`: SystemVerilog source code for the RISC-V processor.
 - `tb/`: C++ Verilator testbenches used to validate the RTL code.

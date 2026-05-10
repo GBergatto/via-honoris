@@ -6,8 +6,12 @@ source files for direct cross-referencing.
 
 ![Architecture diagram](https://dummyimage.com/800x400/eee/aaa){ align=left }
 
+**Note:** Signals throughout the core follow a standard naming convention where
+an `_X` suffix denotes the corresponding pipeline stage: **F**etch, **D**ecode,
+**E**xecute, **M**emory, or **W**riteback.
+
 The following sections will cover the implementation details of the various
-models, assuming a foundational understanding of computer architecture. For a
+modules, assuming a foundational understanding of computer architecture. For a
 comprehensive introduction to these concepts applied to the RISC-V ISA, the
 following references are recommended:
 
@@ -104,7 +108,7 @@ hardware logic.
 |---|---|---|
 |**0x300**|`mstatus`|**Machine Status**: global tracking of current privilege mode and global interrupt enable bits.|
 |**0x304**|`mie`|**Machine Interrupt Enable**: bitmask to selectively enable timer, software, or external interrupts.|
-|**0x305**|`mtvec`|**Machine Trap-Vector Base-Address**: trap handler base address and the interrupt vectoring mode.|
+|**0x305**|`mtvec`|**Machine Trap-Vector Base-Address**: trap handler base address and interrupt vectoring mode.|
 |**0x340**|`mscratch`|**Machine Scratch**: scratchpad for the trap handler to swap context pointers.|
 |**0x341**|`mepc`|**Machine Exception PC**: automatically captures the address of the interrupted instruction when a trap occurs.|
 |**0x342**|`mcause`|**Machine Cause**: automatically updates upon a trap with the exception or interrupt code (e.g., timer interrupt, environment call, or breakpoint).|
@@ -116,8 +120,9 @@ functioning only as read/write scratchpads are omitted here for brevity. For
 the complete architectural specification, refer to Chapter 2 and 3 of the
 RISC-V Privileged Manual.
 
-For a detailed breakdown of how the datapath interacts with these registers
-during synchronous exceptions and asynchronous interrupts, refer to the
-documentation on [trap handling].
+To ensure rapid PC redirections without introducing unnecessary latency, the
+values of `mtvec` and `mepc` are continuously exposed to the datapath via
+dedicated combinatorial outputs. For a detailed breakdown of how the core
+interacts with these registers, refer to the page about [trap handling].
 
 [trap handling]: traps/
