@@ -4,6 +4,8 @@ site_name = "Via Honoris"
 site_description = "A complete RISC-V hardware-software stack built from first principles."
 site_author = "Guglielmo Bergatto"
 site_url = "https://gbergatto.github.io/via-honoris/"
+repo_url = "https://github.com/GBergatto/via-honoris"
+repo_name = "GBergatto/via-honoris"
 
 # The copyright notice appears in the page footer and can contain an HTML
 # fragment.
@@ -234,6 +236,9 @@ features = [
 ]
 
 logo = "assets/helmet.png"
+
+[project.theme.icon]
+repo = "fontawesome/brands/github"
 
 # ----------------------------------------------------------------------------
 # In the "font" subsection you can configure the fonts used. By default, fonts
