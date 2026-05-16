@@ -33,11 +33,11 @@ LOCATE COMP "clkout" SITE "A19";
 IOBUF PORT "clkout" IO_TYPE=LVCMOS25;
 
 # SPI Display Controller (Versa J39 Header)
-LOCATE COMP "spi_sclk"    SITE "D15";  # J39 Pin 4
-LOCATE COMP "spi_mosi"    SITE "B15";  # J39 Pin 5
-LOCATE COMP "spi_dc"      SITE "C15";  # J39 Pin 6
-LOCATE COMP "spi_cs_n"    SITE "B13";  # J39 Pin 7
-LOCATE COMP "spi_reset_n" SITE "B20";  # J39 Pin 8
+LOCATE COMP "spi_sclk"    SITE "D15";
+LOCATE COMP "spi_mosi"    SITE "B15";
+LOCATE COMP "spi_dc"      SITE "C15";
+LOCATE COMP "spi_cs_n"    SITE "B13";
+LOCATE COMP "spi_reset_n" SITE "B20";
 
 IOBUF PORT "spi_sclk"    IO_TYPE=LVCMOS33;
 IOBUF PORT "spi_mosi"    IO_TYPE=LVCMOS33;
@@ -45,3 +45,13 @@ IOBUF PORT "spi_dc"      IO_TYPE=LVCMOS33;
 IOBUF PORT "spi_cs_n"    IO_TYPE=LVCMOS33;
 IOBUF PORT "spi_reset_n" IO_TYPE=LVCMOS33;
 
+# Tetris GPIO Buttons (Versa J39 Header)
+LOCATE COMP "button[0]" SITE "D11";
+LOCATE COMP "button[1]" SITE "E11";
+LOCATE COMP "button[2]" SITE "B12";
+LOCATE COMP "button[3]" SITE "C12";
+
+IOBUF PORT "button[0]" IO_TYPE=LVCMOS33 PULLMODE=UP;
+IOBUF PORT "button[1]" IO_TYPE=LVCMOS33 PULLMODE=UP;
+IOBUF PORT "button[2]" IO_TYPE=LVCMOS33 PULLMODE=UP;
+IOBUF PORT "button[3]" IO_TYPE=LVCMOS33 PULLMODE=UP;

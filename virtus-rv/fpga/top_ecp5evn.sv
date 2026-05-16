@@ -1,4 +1,5 @@
 module top_ecp5evn(
+    input  wire [3:0] button,
     output wire [7:0] led,
     output wire spi_sclk,
     output wire spi_mosi,
@@ -25,6 +26,7 @@ module top_ecp5evn(
     ) system (
         .clk (clk),
         .rst (rst),
+        .buttons (button),
         .leds (soc_leds),
         .spi_sclk (spi_sclk),
         .spi_mosi (spi_mosi),
