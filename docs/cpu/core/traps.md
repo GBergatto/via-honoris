@@ -62,8 +62,8 @@ trap is an interrupt and `mtvec` is configured in Vectored mode, the core
 applies a specific offset to the base address. For all synchronous exceptions
 or for interrupts in Direct mode, the PC is set jumps directly to the base address.
 
-[CSR file]: https://github.com/GBergatto/via-honoris/blob/main/core/rtl/csr_file.sv
-[this multiplexer]: https://github.com/GBergatto/via-honoris/blob/6795f79f4a9ad15fd9297ef025096b0562573052/core/rtl/hp_core.sv#L515-L518
+[CSR file]: https://github.com/GBergatto/via-honoris/blob/main/virtus-rv/rtl/csr_file.sv
+[this multiplexer]: https://github.com/GBergatto/via-honoris/blob/main/virtus-rv/rtl/hp_core.sv#L515-L518
 
 ## State management
 

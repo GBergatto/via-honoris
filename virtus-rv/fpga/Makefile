@@ -4,7 +4,7 @@
 
 PROJ = custom_riscv
 RTL_DIR  = ../rtl
-FW_DIR   = ../fw
+FW_DIR   = ../../sw/build
 
 SV_FILES = \
     $(RTL_DIR)/core_types_pkg.sv \

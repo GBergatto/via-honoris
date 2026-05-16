@@ -1,4 +1,4 @@
-.PHONY: all verify rvtests sim bitstream prog clean fw tb fpga waves
+.PHONY: all verify rvtests sim bitstream prog clean tb fpga waves
 
 # --- Configuration Variables ---
 MODULE ?= hp_soc
@@ -18,11 +18,6 @@ endif
 # Default target
 all: verify
 
-# 1. Build firmware only
-fw:
-	@echo ">>> Building Firmware ($(PROG))..."
-	$(MAKE) -C fw PROG=$(PROG)
-
 # 2. Run Verilator testbench
 verify:
 	@echo ">>> Running Verilator testbench..."
@@ -34,17 +29,17 @@ rvtests:
 	$(MAKE) -C tb MODULE=hp_soc TB=riscv_tests_tb.cpp
 
 # 3. Simulate firmware
-sim: fw
+sim:
 	@echo ">>> Simulating Firmware ($(PROG))..."
 	$(MAKE) -C tb MODULE=$(MODULE) TB=hp_soc_tb.cpp SIM_ARGS="--fw $(PROG)"
 
 # 4. Build FPGA bitstream
-bitstream: fw
+bitstream:
 	@echo ">>> Building FPGA Bitstream..."
 	$(MAKE) -C fpga bitstream
 
 # 5. Flash FPGA
-prog: fw
+prog:
 	@echo ">>> Flashing FPGA..."
 	$(MAKE) -C fpga prog
 
@@ -62,7 +57,6 @@ waves:
 # 7. Clean everything
 clean:
 	@echo ">>> Cleaning all directories..."
-	$(MAKE) -C fw clean
 	$(MAKE) -C tb clean
 	$(MAKE) -C fpga clean
 

@@ -16,7 +16,6 @@ system:
 
 - `rtl/`: SystemVerilog source code for the RISC-V processor.
 - `tb/`: C++ Verilator testbenches used to validate the RTL code.
-- `fw/`: Firmware to be executed on the processor.
 - `fpga/`: Top-level modules and configuration files for FPGA synthesis and
 deployment.
 - `Makefile`: Master build script that handles both simulation and FPGA

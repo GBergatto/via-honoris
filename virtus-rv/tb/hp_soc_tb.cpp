@@ -20,10 +20,10 @@ namespace fs = std::filesystem;
 #define TESTNAME_LENGTH 25
 #define MAX_SIM_CYCLES 50000 // Timeout to prevent infinite loops
 #define ROMS_DIR "roms"
-#define FW_DIR "../fw"
+#define FW_DIR "../../sw/build"
 #define FIRMWARE_HEX "firmware.hex"
 #define ASSEMBLER_CMD "riscv32-unknown-elf-as -march=rv32i_zicsr -mabi=ilp32 "
-#define LINKER_CMD "riscv32-unknown-elf-ld -Ttext 0x80000000 "
+#define LINKER_CMD "riscv32-unknown-elf-ld -Ttext 0x80000000 -e 0x80000000 "
 
 // ANSI colors helpers
 #define RESET   "\033[0m"
@@ -130,7 +130,7 @@ void run_test(const fs::path& asm_file, const fs::path& yaml_file) {
         cycle++;
 
         // Snoop for EBREAK
-        if (dut->hp_soc->core->is_env_trap_W && dut->hp_soc->core->csr_addr_W == 0x001) {
+        if (dut->hp_soc->core->is_sync_exception_W && dut->hp_soc->core->csr_addr_W == 0x001) {
             timeout = false;
             break;
         }

@@ -3,7 +3,13 @@ module hp_soc #(
 )(
     input  logic clk,
     input  logic rst,
-    output logic [7:0] leds
+    output logic [7:0] leds,
+    // SPI Pins
+    output logic spi_sclk,
+    output logic spi_mosi,
+    output logic spi_cs_n,
+    output logic spi_dc,
+    output logic spi_reset_n
 );
 
 /* verilator lint_off UNUSEDSIGNAL */
@@ -116,26 +122,29 @@ arbiter_wb arbiter (
 );
 
 /* Wishbone Decoder */
-logic is_bram, is_led, is_clint;
+logic is_bram, is_led, is_clint, is_spi;
 assign is_bram = (s_adr >= 32'h8000_0000);
 assign is_led  = (s_adr == 32'h0100_0000);
 assign is_clint = (s_adr >= 32'h0200_0000 && s_adr < 32'h0201_0000);
+assign is_spi  = (s_adr >= 32'h0300_0000 && s_adr < 32'h0400_0000);
 
-logic bram_cyc, led_cyc, clint_cyc;
+logic bram_cyc, led_cyc, clint_cyc, spi_cyc;
 assign bram_cyc = s_cyc && is_bram;
 assign led_cyc  = s_cyc && is_led;
 assign clint_cyc = s_cyc && is_clint;
+assign spi_cyc  = s_cyc && is_spi;
 
-logic bram_stb, led_stb, clint_stb;
+logic bram_stb, led_stb, clint_stb, spi_stb;
 assign bram_stb = s_stb && is_bram;
 assign led_stb  = s_stb && is_led;
 assign clint_stb = s_stb && is_clint;
+assign spi_stb  = s_stb && is_spi;
 
-logic [31:0] bram_dat_o, led_dat_o, clint_dat_o;
-logic bram_ack, led_ack, clint_ack;
+logic [31:0] bram_dat_o, led_dat_o, clint_dat_o, spi_dat_o;
+logic bram_ack, led_ack, clint_ack, spi_ack;
 
-assign s_dat_i = is_led ? led_dat_o : (is_clint ? clint_dat_o : bram_dat_o);
-assign s_ack   = is_led ? led_ack : (is_clint ? clint_ack : bram_ack);
+assign s_dat_i = is_led ? led_dat_o : (is_clint ? clint_dat_o : (is_spi ? spi_dat_o : bram_dat_o));
+assign s_ack   = is_led ? led_ack : (is_clint ? clint_ack : (is_spi ? spi_ack : bram_ack));
 
 /* BRAM Slave */
 sysmem_wb #(
@@ -196,6 +205,25 @@ clint clint_i (
    .wb_cyc_i (clint_cyc),
    .wb_ack_o (clint_ack),
    .mtip (mtip)
+);
+
+/* SPI Master Slave */
+spi_master_wb spi_master_i (
+   .wb_clk_i (clk),
+   .wb_rst_i (rst),
+   .wb_adr_i (s_adr),
+   .wb_dat_i (s_dat_o),
+   .wb_dat_o (spi_dat_o),
+   .wb_sel_i (s_sel),
+   .wb_we_i  (s_we),
+   .wb_cyc_i (spi_cyc),
+   .wb_stb_i (spi_stb),
+   .wb_ack_o (spi_ack),
+   .spi_sclk (spi_sclk),
+   .spi_mosi (spi_mosi),
+   .spi_cs_n (spi_cs_n),
+   .spi_dc (spi_dc),
+   .spi_reset_n (spi_reset_n)
 );
 
 endmodule

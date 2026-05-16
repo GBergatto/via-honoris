@@ -1,5 +1,10 @@
 module top_ecp5evn(
-    output wire [7:0] led
+    output wire [7:0] led,
+    output wire spi_sclk,
+    output wire spi_mosi,
+    output wire spi_cs_n,
+    output wire spi_dc,
+    output wire spi_reset_n
 );
     // 1. Internal Clock
     wire clk;
@@ -16,11 +21,16 @@ module top_ecp5evn(
     // 3. Connect the SoC
     wire [7:0] soc_leds;
     hp_soc #(
-        .INIT_FILE("../fw/firmware.hex")
+        .INIT_FILE("../../sw/build/firmware.hex")
     ) system (
         .clk (clk),
         .rst (rst),
-        .leds (soc_leds)
+        .leds (soc_leds),
+        .spi_sclk (spi_sclk),
+        .spi_mosi (spi_mosi),
+        .spi_cs_n (spi_cs_n),
+        .spi_dc (spi_dc),
+        .spi_reset_n (spi_reset_n)
     );
 
     assign led = soc_leds;
