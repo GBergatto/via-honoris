@@ -28,7 +28,7 @@ nav = [
      "cpu/cpu.md",
      { "Core" = [
         "cpu/core/microarchitecture.md",
-        "cpu/core/hazards.md",
+        "cpu/core/pipeline.md",
         "cpu/core/traps.md"
      ]},
      { "SoC" = [
