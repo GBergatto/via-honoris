@@ -20,3 +20,23 @@ Developed as part of the [Honors Academy] at TU Eindhoven.
 [Virtus-RV]: cpu/cpu/
 [Honors Academy]: https://educationguide.tue.nl/programs/honors-academy
 
+## Getting Started
+
+The root `Makefile` orchestrates the software compilation and deployment
+workflow. The specific software payload for simulation or FPGA deployment is
+defined by the `FW` variable, pointing to the target assembly file, C file or
+application directory.
+
+- `make sim FW=<path>`: Compiles the specified software and simulates its
+execution on the Verilator hardware model.
+- `make prog FW=<path>`: Compiles the software, generates the FPGA
+bitstream (integrating the binary into block RAM), and flashes it to the
+connected ECP5 board.
+- `make clean`: Removes all build artifacts across the entire project,
+including Verilator simulation builds, bitstreams, and compiled binaries.
+
+Note: For RTL verification and compliance testing, refer to the [CPU Build
+System section].
+
+[CPU Build System section]: cpu/cpu/#build-system
+

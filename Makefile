@@ -10,15 +10,15 @@ sim:
 	@echo ">>> Building software: $(FW)..."
 	$(MAKE) -C sw FW=$(SW_FW)
 	@echo ">>> Simulating on Virtus-RV..."
-	$(MAKE) -C virtus-rv sim PROG=$(PROG_NAME)
+	$(MAKE) -C virtus-rv/tb MODULE=hp_soc TB=hp_soc_tb.cpp SIM_ARGS="--fw $(PROG_NAME)"
 
 prog:
 	@echo ">>> Building software: $(FW)..."
 	$(MAKE) -C sw FW=$(SW_FW)
 	@echo ">>> Building FPGA Bitstream..."
-	$(MAKE) -C virtus-rv bitstream PROG=$(PROG_NAME)
+	$(MAKE) -C virtus-rv/fpga bitstream
 	@echo ">>> Flashing FPGA..."
-	$(MAKE) -C virtus-rv prog PROG=$(PROG_NAME)
+	$(MAKE) -C virtus-rv/fpga prog
 
 clean:
 	@echo ">>> Cleaning Virtus-RV..."

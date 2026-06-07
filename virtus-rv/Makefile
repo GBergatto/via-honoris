@@ -1,9 +1,8 @@
-.PHONY: all verify rvtests sim bitstream prog clean tb fpga waves
+.PHONY: all verify rvtests clean tb fpga waves
 
 # --- Configuration Variables ---
 MODULE ?= hp_soc
 TB     ?= $(MODULE)
-PROG   ?= counter
 WAVE   ?= $(PROG)
 
 # Resolve testbench source from a stem (e.g. TB=regfile -> tb/regfile_tb.cpp)
@@ -18,32 +17,17 @@ endif
 # Default target
 all: verify
 
-# 2. Run Verilator testbench
+# Run Verilator testbench
 verify:
 	@echo ">>> Running Verilator testbench..."
 	$(MAKE) -C tb MODULE=$(MODULE) TB=$(notdir $(TB_CPP))
 
-# 2b. Run official riscv-tests (rv32ui)
+# Run official riscv-tests (rv32ui)
 rvtests:
 	@echo ">>> Running rv32ui riscv-tests..."
 	$(MAKE) -C tb MODULE=hp_soc TB=riscv_tests_tb.cpp
 
-# 3. Simulate firmware
-sim:
-	@echo ">>> Simulating Firmware ($(PROG))..."
-	$(MAKE) -C tb MODULE=$(MODULE) TB=hp_soc_tb.cpp SIM_ARGS="--fw $(PROG)"
-
-# 4. Build FPGA bitstream
-bitstream:
-	@echo ">>> Building FPGA Bitstream..."
-	$(MAKE) -C fpga bitstream
-
-# 5. Flash FPGA
-prog:
-	@echo ">>> Flashing FPGA..."
-	$(MAKE) -C fpga prog
-
-# 6. Open GTKWave
+# Open GTKWave
 waves:
 	@echo ">>> Looking for waveform for: $(WAVE)"
 	@VCD_PATH=$$(find tb/logs/waves -name "$(WAVE).vcd" | head -n 1); \
@@ -54,7 +38,7 @@ waves:
 		gtkwave $$VCD_PATH tb/hp_soc.gtkw > /dev/null 2>&1 & \
 		fi
 
-# 7. Clean everything
+# Clean everything
 clean:
 	@echo ">>> Cleaning all directories..."
 	$(MAKE) -C tb clean
