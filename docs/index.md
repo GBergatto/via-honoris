@@ -12,13 +12,14 @@ The stack includes:
 
 - [Virtus-RV]: A 5-stage RISC-V CPU implemented in SystemVerilog.
 - Operating System: Initial port of FreeRTOS, followed by a custom OS (coming soon).
-- Applications: Demo programs for system-level testing (coming soon).
+- [Applications]: Demo programs for system-level testing.
 
 Developed as part of the [Honors Academy] at TU Eindhoven.
 
 
 [Virtus-RV]: cpu/cpu/
 [Honors Academy]: https://educationguide.tue.nl/programs/honors-academy
+[Applications]: apps/tetris/
 
 ## Getting Started
 
