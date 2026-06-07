@@ -48,7 +48,7 @@ else
     # C project
     CRT0 = bsp/crt0.s
     SRC = $(CRT0) $(SRC_C) $(LIB_C)
-    CFLAGS_EXTRA = -O2 -Ibsp -Ilibs -ffunction-sections -fdata-sections -Wl,--gc-sections,--no-warn-rwx-segments
+    CFLAGS_EXTRA = -O2 -Ibsp -Ilibs -ffunction-sections -fdata-sections -fno-tree-loop-distribute-patterns -Wl,--gc-sections,--no-warn-rwx-segments
 endif
 
 $(BUILD_DIR):

@@ -1,0 +1,6 @@
+--target=riscv32-unknown-elf
+-I./libs
+-I./bsp
+-march=rv32i_zicsr
+-mabi=ilp32
+-nostdlib
