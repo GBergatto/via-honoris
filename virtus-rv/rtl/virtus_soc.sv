@@ -1,4 +1,4 @@
-module hp_soc #(
+module virtus_soc #(
    parameter string INIT_FILE = ""
 )(
     input  logic clk,
@@ -25,7 +25,7 @@ logic mtip;
 assign ext_stall = imem_stall | dmem_stall;
 
 /* RISC-V core */
-hp_core core (
+virtus_core core (
    .clk (clk),
    .rst (rst),
    .ext_stall (ext_stall),

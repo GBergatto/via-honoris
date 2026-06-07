@@ -1,7 +1,7 @@
 .PHONY: all verify rvtests clean tb fpga waves
 
 # --- Configuration Variables ---
-MODULE ?= hp_soc
+MODULE ?= virtus_soc
 TB     ?= $(MODULE)
 WAVE   ?= $(PROG)
 
@@ -25,7 +25,7 @@ verify:
 # Run official riscv-tests (rv32ui)
 rvtests:
 	@echo ">>> Running rv32ui riscv-tests..."
-	$(MAKE) -C tb MODULE=hp_soc TB=riscv_tests_tb.cpp
+	$(MAKE) -C tb MODULE=virtus_soc TB=riscv_tests_tb.cpp
 
 # Open GTKWave
 waves:
@@ -34,8 +34,8 @@ waves:
 		if [ -z "$$VCD_PATH" ]; then \
 		echo "Error: Could not find $$VCD_PATH. Run tests or simulation first."; \
 		else \
-		echo "Opening $$VCD_PATH with template tb/hp_soc.gtkw..."; \
-		gtkwave $$VCD_PATH tb/hp_soc.gtkw > /dev/null 2>&1 & \
+		echo "Opening $$VCD_PATH with template tb/virtus_soc.gtkw..."; \
+		gtkwave $$VCD_PATH tb/virtus_soc.gtkw > /dev/null 2>&1 & \
 		fi
 
 # Clean everything

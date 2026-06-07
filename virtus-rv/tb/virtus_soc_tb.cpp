@@ -1,7 +1,7 @@
-#include "Vhp_soc.h"
-#include "Vhp_soc_hp_soc.h"
-#include "Vhp_soc_hp_core.h"
-#include "Vhp_soc_regfile.h"
+#include "Vvirtus_soc.h"
+#include "Vvirtus_soc_virtus_soc.h"
+#include "Vvirtus_soc_virtus_core.h"
+#include "Vvirtus_soc_regfile.h"
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
@@ -101,7 +101,7 @@ void run_test(const fs::path& asm_file, const fs::path& yaml_file) {
     // 3) set up simulation
     VerilatedContext* contextp = new VerilatedContext;
     VerilatedVcdC* tfp = new VerilatedVcdC;
-    Vhp_soc* dut = new Vhp_soc{contextp};
+    Vvirtus_soc* dut = new Vvirtus_soc{contextp};
 
     contextp->traceEverOn(true);
     dut->trace(tfp, 99);
@@ -130,7 +130,7 @@ void run_test(const fs::path& asm_file, const fs::path& yaml_file) {
         cycle++;
 
         // Snoop for EBREAK
-        if (dut->hp_soc->core->is_sync_exception_W && dut->hp_soc->core->csr_addr_W == 0x001) {
+        if (dut->virtus_soc->core->is_sync_exception_W && dut->virtus_soc->core->csr_addr_W == 0x001) {
             timeout = false;
             break;
         }
@@ -141,7 +141,7 @@ void run_test(const fs::path& asm_file, const fs::path& yaml_file) {
     std::stringstream log_buffer; // Buffer for register dump
 
     for (auto& [idx, exp_val] : expected) {
-        uint32_t got = dut->hp_soc->core->regfile_i->get_reg(idx);
+        uint32_t got = dut->virtus_soc->core->regfile_i->get_reg(idx);
 
         log_buffer << "   x" << std::dec << idx << "=0x" << std::hex << got;
 
@@ -176,7 +176,7 @@ void run_test(const fs::path& asm_file, const fs::path& yaml_file) {
 void run_firmware(const std::string& prog_name, int max_cycles = 2000) {
     VerilatedContext* contextp = new VerilatedContext;
     VerilatedVcdC* tfp = new VerilatedVcdC;
-    Vhp_soc* dut = new Vhp_soc{contextp};
+    Vvirtus_soc* dut = new Vvirtus_soc{contextp};
 
     contextp->traceEverOn(true);
     dut->trace(tfp, 99);

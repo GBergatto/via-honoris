@@ -91,7 +91,7 @@ physical pins (`leds <= ~s_dat_o[7:0]`). This allows software to treat the LEDs
 as active-high (writing `1` turns the LED on) while abstracting away the
 physical active-low hardware implementation.
 
-[LED slave]: https://github.com/GBergatto/via-honoris/blob/main/virtus-rv/rtl/hp_soc.sv#L232-L249
+[LED slave]: https://github.com/GBergatto/via-honoris/blob/main/virtus-rv/rtl/virtus_soc.sv#L232-L249
 
 ### CLINT Slave
 

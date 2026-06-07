@@ -1,7 +1,7 @@
 /* verilator lint_off IMPORTSTAR */
 import core_types_pkg::*;
 
-module hp_core (
+module virtus_core (
    input  logic clk,
    input  logic rst,
    input  logic ext_stall, // stall from external bus

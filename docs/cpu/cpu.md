@@ -26,11 +26,11 @@ deployment by calling sub-folder Makefiles.
 The `Makefile` inside the `virtus-rv/` directory orchestrates the hardware build
 workflow.
 
-By default, the target RTL module is set to `hp_soc`, which can be overridden
+By default, the target RTL module is set to `virtus_soc`, which can be overridden
 using the `MODULE` variable. If you change the target module, you must run
 `make clean` first to clear out any stale Verilator object files. Finally, for
 debugging, the `WAVE` variable allows for quickly opening the simulation traces
-in GTKWave, using the predefined signal layout found in `tb/hp_soc.gtkw`.
+in GTKWave, using the predefined signal layout found in `tb/virtus_soc.gtkw`.
 
 - `make verify` (or `make`): Runs the C++ Verilator testbench to validate the
 RTL for the specified `MODULE`.

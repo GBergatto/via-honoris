@@ -2,7 +2,7 @@
 # Simulation Makefile (Verilator)
 # ==============================================================================
 
-MODULE ?= hp_soc
+MODULE ?= virtus_soc
 TB ?= $(MODULE)_tb.cpp
 SIM_ARGS ?=
 
@@ -35,7 +35,7 @@ VERILATOR_FLAGS += --assert
 VERILATOR_FLAGS += --coverage
 VERILATOR_FLAGS += -Mdir $(OBJ_DIR)
 
-ifeq ($(MODULE),hp_soc)
+ifeq ($(MODULE),virtus_soc)
 	VERILATOR_FLAGS += -GINIT_FILE='"roms/firmware.hex"'
 endif
 

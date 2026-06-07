@@ -63,7 +63,7 @@ applies a specific offset to the base address. For all synchronous exceptions
 or for interrupts in Direct mode, the PC is set jumps directly to the base address.
 
 [CSR file]: https://github.com/GBergatto/via-honoris/blob/main/virtus-rv/rtl/csr_file.sv
-[this multiplexer]: https://github.com/GBergatto/via-honoris/blob/main/virtus-rv/rtl/hp_core.sv#L515-L518
+[this multiplexer]: https://github.com/GBergatto/via-honoris/blob/main/virtus-rv/rtl/virtus_core.sv#L515-L518
 
 ## State management
 

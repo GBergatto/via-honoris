@@ -21,7 +21,7 @@ module top_ecp5evn(
 
     // 3. Connect the SoC
     wire [7:0] soc_leds;
-    hp_soc #(
+    virtus_soc #(
         .INIT_FILE("../../sw/build/firmware.hex")
     ) system (
         .clk (clk),

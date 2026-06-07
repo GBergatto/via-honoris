@@ -1,4 +1,4 @@
--Itb/build/obj_dir_hp_soc_tb
+-Itb/build/obj_dir_virtus_soc_tb
 -Itb/build/obj_dir_riscv_tests_tb
 -Itb/build/obj_dir_alu_tb
 -Itb/build/obj_dir_dmem_tb
