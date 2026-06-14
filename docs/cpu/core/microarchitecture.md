@@ -4,7 +4,7 @@ The microarchitecture of the 5-stage RISC-V core is detailed in the diagram
 below. Module and signal names are kept consistent with the SystemVerilog
 source files for direct cross-referencing.
 
-![Architecture diagram](https://dummyimage.com/800x400/eee/aaa){ align=left }
+![Banner](../../assets/microarchitecture.png){ align=left }
 
 **Note:** Signals throughout the core follow a standard naming convention where
 an `_X` suffix denotes the corresponding pipeline stage: **F**etch, **D**ecode,
